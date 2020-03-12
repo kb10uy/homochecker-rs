@@ -6,6 +6,7 @@ use warp::Reply;
 use crate::homo::{HomoService, HomoServiceResponse, HomoServiceStatus};
 use std::{convert::Infallible, error::Error, time::Instant};
 
+/*
 pub async fn check() -> Result<impl Reply, Infallible> {
     use warp::sse;
 
@@ -25,7 +26,7 @@ pub async fn check() -> Result<impl Reply, Infallible> {
         });
     }
 
-    Ok(sse::reply(rx))
+    // Ok(sse::reply(rx))
 }
 
 async fn request_service(
@@ -44,3 +45,4 @@ async fn request_service(
         duration,
     })
 }
+*/

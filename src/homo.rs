@@ -1,9 +1,21 @@
 //! Contains abstract domain model.
 
-use std::{
-    time::Duration,
-    net::SocketAddr,
-};
+use std::{net::SocketAddr, time::Duration};
+
+use serde::{ser::SerializeMap, Serialize, Serializer};
+
+/// Represents a person who provides the homo service.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Provider {
+    /// A Twitter user.
+    Twitter(String),
+
+    /// A Mastodon user.
+    Mastodon {
+        screen_name: String,
+        domain: String,
+    }
+}
 
 /// Represents a person provides a homo service.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -12,7 +24,7 @@ pub struct HomoService {
     pub service_url: String,
 
     /// The screen name of this user.
-    pub screen_name: String,
+    pub provider: Provider,
 
     /// The URL to the avatar image of this user.
     pub avatar_url: String,
@@ -41,11 +53,11 @@ pub enum HomoServiceStatus {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HomoServiceResponse {
     /// Status.
-    status: HomoServiceStatus,
+    pub status: HomoServiceStatus,
 
     /// The remote IP address.
-    remote_address: Option<SocketAddr>,
+    pub remote_address: Option<SocketAddr>,
 
     /// The response time.
-    duration: Duration,
+    pub duration: Duration,
 }
