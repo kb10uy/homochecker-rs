@@ -7,20 +7,20 @@ use std::{
 
 /// Represents a person provides a homo service.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct HomoService {
+pub struct HomoService {
     /// The URL to this service.
-    service_url: String,
+    pub service_url: String,
 
     /// The screen name of this user.
-    screen_name: String,
+    pub screen_name: String,
 
     /// The URL to the avatar image of this user.
-    avatar_url: String,
+    pub avatar_url: String,
 }
 
 /// Represents the status of the homo service.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum HomoServiceStatus {
+pub enum HomoServiceStatus {
     /// The service returned a 301/302/308 response with specific `Location` header.
     RedirectResponse,
 
@@ -39,12 +39,12 @@ enum HomoServiceStatus {
 
 /// Represents the response information of homo service.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct HomoServiceResponse {
+pub struct HomoServiceResponse {
     /// Status.
     status: HomoServiceStatus,
 
     /// The remote IP address.
-    remote_address: SocketAddr,
+    remote_address: Option<SocketAddr>,
 
     /// The response time.
     duration: Duration,
