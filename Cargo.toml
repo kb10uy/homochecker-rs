@@ -46,9 +46,3 @@ version = "0.10"
 
 [dependencies.tokio-postgres]
 version = "0.5"
-
-[dependencies.r2d2]
-version = "0.8"
-
-[dependencies.r2d2_postgres]
-version = "0.16"

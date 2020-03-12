@@ -1,8 +1,7 @@
 //! Contains abstract domain model.
 
+use crate::repository::User;
 use std::{net::SocketAddr, time::Duration};
-
-use serde::{ser::SerializeMap, Serialize, Serializer};
 
 /// Represents a person who provides the homo service.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -11,10 +10,7 @@ pub enum Provider {
     Twitter(String),
 
     /// A Mastodon user.
-    Mastodon {
-        screen_name: String,
-        domain: String,
-    }
+    Mastodon { screen_name: String, domain: String },
 }
 
 /// Represents a person provides a homo service.
@@ -60,4 +56,29 @@ pub struct HomoServiceResponse {
 
     /// The response time.
     pub duration: Duration,
+}
+
+impl Provider {
+    pub fn from_entity(entity_sn: &str) -> Result<Provider, String> {
+        let parts: Vec<_> = entity_sn.split('@').collect();
+        match parts.len() {
+            1 => Ok(Provider::Twitter(parts[0].into())),
+            3 if parts[0] == "" => Ok(Provider::Mastodon {
+                screen_name: parts[1].into(),
+                domain: parts[2].into(),
+            }),
+            _ => Err("Invalid screen name expression".into()),
+        }
+    }
+}
+
+impl HomoService {
+    /// Builds `HomoService` from `User` entity.
+    pub fn from_user(user: &User) -> Result<HomoService, String> {
+        Ok(HomoService {
+            provider: Provider::from_entity(&user.screen_name)?,
+            avatar_url: user.avatar_url.to_owned(),
+            service_url: user.service_url.to_owned(),
+        })
+    }
 }

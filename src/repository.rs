@@ -1,6 +1,6 @@
 //! Contains data repository.
 
-use std::error::Error;
+use std::{error::Error, sync::Arc};
 
 use tokio_postgres::{Client, Error as PostgresError, Row};
 
@@ -22,7 +22,7 @@ pub struct User {
 
 impl User {
     /// Fetches all record from `users`.
-    pub async fn fetch_all<T>(client: &Client) -> Result<Vec<User>, Box<dyn Error>> {
+    pub async fn fetch_all(client: Arc<Client>) -> Result<Vec<User>, Box<dyn Error>> {
         let rows = client
             .query(r#"SELECT * FROM "users" ORDER BY "id";"#, &[])
             .await?;
