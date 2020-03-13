@@ -6,6 +6,11 @@ edition = "2018"
 
 # Dependencies -----------------------------------------------------------------
 
+# Language Support
+
+[dependencies.async-trait]
+version = "0.1"
+
 # Environment
 
 [dependencies.dotenv]
@@ -41,6 +46,9 @@ version = "0.2"
 
 [dependencies.reqwest]
 version = "0.10"
+
+[dependencies.html5ever]
+version = "0.25"
 
 # Database
 

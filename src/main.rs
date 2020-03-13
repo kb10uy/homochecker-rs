@@ -3,6 +3,7 @@ mod api;
 mod route;
 mod homo;
 mod repository;
+mod validation;
 
 use std::{collections::HashMap, env::vars, net::SocketAddr, process::exit, sync::Arc};
 
