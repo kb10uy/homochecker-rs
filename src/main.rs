@@ -1,6 +1,6 @@
 mod action;
 mod api;
-mod filter;
+mod route;
 mod homo;
 mod repository;
 
@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             exit(1);
         });
 
-    let routes = filter::homochecker(client);
+    let routes = route::homochecker(client);
 
     info!("Listening on {}", listen_address);
     warp::serve(routes).run(listen_address).await;

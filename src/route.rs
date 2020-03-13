@@ -1,5 +1,6 @@
 //! Contains warp filters.
 
+use crate::{action, api::*};
 use std::{convert::Infallible, sync::Arc};
 
 use tokio_postgres::Client;
@@ -9,7 +10,9 @@ use warp::{Filter, Rejection, Reply};
 pub fn homochecker(
     connection: Arc<Client>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    homochecker_check(connection)
+    homochecker_check_all(connection.clone())
+        .or(homochecker_check_user(connection))
+        .with(warp::log("homochecker-rs"))
 }
 
 /// Returns a filter attaches the connection pool.
@@ -20,11 +23,22 @@ fn attach_pool(
 }
 
 /// Returns the filter of `GET /check`.
-fn homochecker_check(
+fn homochecker_check_all(
     connection: Arc<Client>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("check")
         .and(warp::get())
+        .and(warp::query::<CheckQueryParameter>())
         .and(attach_pool(connection))
         .and_then(crate::action::check_all)
+}
+
+fn homochecker_check_user(
+    connection: Arc<Client>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path!("check" / String)
+        .and(warp::get())
+        .and(warp::query())
+        .and(attach_pool(connection))
+        .and_then(action::check_user)
 }

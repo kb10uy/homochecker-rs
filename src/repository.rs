@@ -12,7 +12,7 @@ where
     fn from_row(row: &Row) -> Result<Self, PostgresError>;
 }
 
-/// `users`
+/// Represents a record of `users`.
 pub struct User {
     pub id: i32,
     pub screen_name: String,
@@ -20,11 +20,32 @@ pub struct User {
     pub service_url: String,
 }
 
-impl User {
+/// Represents the repository corresponding `User`.
+pub struct UserRepository;
+
+impl UserRepository {
     /// Fetches all record from `users`.
     pub async fn fetch_all(client: Arc<Client>) -> Result<Vec<User>, Box<dyn Error>> {
         let rows = client
             .query(r#"SELECT * FROM "users" ORDER BY "id";"#, &[])
+            .await?;
+
+        rows.iter().try_fold(vec![], |mut users, row| {
+            users.push(User::from_row(row)?);
+            Ok(users)
+        })
+    }
+
+    /// Fetches records with specific screen name from `users`.
+    pub async fn fetch_by_screen_name(
+        client: Arc<Client>,
+        screen_name: &str,
+    ) -> Result<Vec<User>, Box<dyn Error>> {
+        let rows = client
+            .query(
+                r#"SELECT * FROM "users" WHERE screen_name = $1 ORDER BY "id";"#,
+                &[&screen_name],
+            )
             .await?;
 
         rows.iter().try_fold(vec![], |mut users, row| {

@@ -1,6 +1,21 @@
 use crate::homo::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+
+/// Response format for `GET /check/*`.
+#[derive(Debug, Deserialize)]
+pub enum CheckResponseFormat {
+    #[serde(rename = "sse")]
+    ServerSentEvent,
+    #[serde(rename = "json")]
+    Json,
+}
+
+/// Represents a data object of query parameter of `GET /check/*`.
+#[derive(Debug, Deserialize)]
+pub struct CheckQueryParameter {
+    pub format: CheckResponseFormat,
+}
 
 /// Represents a data object of 'initialize' event in `GET /check`.
 #[derive(Debug, Serialize)]
