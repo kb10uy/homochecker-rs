@@ -73,8 +73,18 @@ async fn check_services(
         })
         .flatten()
         .collect();
+
     let client = Client::builder()
-        .redirect(RedirectPolicy::none())
+        .redirect(RedirectPolicy::custom(|attempt| {
+            // HTTPS ドメインへのリダイレクトだけ飛ぶ
+            let prev = &attempt.previous()[0];
+            let next = attempt.url();
+            if prev.host_str() == next.host_str() {
+                attempt.follow()
+            } else {
+                attempt.stop()
+            }
+        }))
         .timeout(Duration::from_secs(5))
         .build()
         .unwrap();
@@ -167,16 +177,19 @@ async fn request_service(
 
     let request = client.get(&service.service_url);
     let start_at = Instant::now();
-    let response = request.send().await?;
+    let response = request.send().await;
 
     let duration = start_at.elapsed();
-    let remote_address = response.remote_addr();
-    let status = match response.validate::<ResponseHeaderValidator>().await {
-        Some(s) => s,
-        None => response
-            .into_validate::<ResponseHtmlValidator>()
-            .await
-            .unwrap_or(HomoServiceStatus::Invalid),
+    let remote_address = response.as_ref().map(|r| r.remote_addr()).ok().flatten();
+    let status = match response {
+        Ok(r) => match r.validate::<ResponseHeaderValidator>().await {
+            Some(s) => s,
+            None => r
+                .into_validate::<ResponseHtmlValidator>()
+                .await
+                .unwrap_or(HomoServiceStatus::Invalid),
+        },
+        Err(_) => HomoServiceStatus::Error,
     };
 
     Ok(HomoServiceResponse {
