@@ -80,7 +80,9 @@ async fn check_services(
         .unwrap();
 
     match query.format {
-        Some(CheckResponseFormat::ServerSentEvent) | None => check_services_sse(client, services).await,
+        Some(CheckResponseFormat::ServerSentEvent) | None => {
+            check_services_sse(client, services).await
+        }
         Some(CheckResponseFormat::Json) => check_services_json(client, services).await,
     }
 }
@@ -159,15 +161,27 @@ async fn request_service(
     client: Client,
     service: Arc<HomoService>,
 ) -> Result<HomoServiceResponse, ReqwestError> {
+    use crate::validation::response::{
+        ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt,
+    };
+
     let request = client.get(&service.service_url);
     let start_at = Instant::now();
     let response = request.send().await?;
-    let duration = start_at.elapsed();
 
-    // TODO セットする
+    let duration = start_at.elapsed();
+    let remote_address = response.remote_addr();
+    let status = match response.validate::<ResponseHeaderValidator>().await {
+        Some(s) => s,
+        None => response
+            .into_validate::<ResponseHtmlValidator>()
+            .await
+            .unwrap_or(HomoServiceStatus::Invalid),
+    };
+
     Ok(HomoServiceResponse {
-        status: HomoServiceStatus::RedirectResponse,
-        remote_address: response.remote_addr(),
+        status,
+        remote_address,
         duration,
     })
 }
