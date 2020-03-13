@@ -45,7 +45,7 @@ pub struct CheckEventResponseData {
 
 impl CheckEventResponseData {
     pub fn build(service: &HomoService, response: &HomoServiceResponse) -> CheckEventResponseData {
-        // TODO: 正しい値をセットする
+        // TODO: icon をキャッシュに
         CheckEventResponseData {
             homo: CheckEventResponseDataHomo {
                 screen_name: match &service.provider {
@@ -63,15 +63,16 @@ impl CheckEventResponseData {
                 icon: service.avatar_url.to_owned(),
                 url: service.service_url.to_owned(),
                 display_url: service.service_url.to_owned(),
-                secure: true,
+                secure: service.service_url.starts_with("https"),
             },
             status: match response.status {
                 HomoServiceStatus::RedirectResponse | HomoServiceStatus::RedirectContent => "OK",
                 HomoServiceStatus::LinkContent => "CONTAINS",
-                _ => "ERROR",
+                HomoServiceStatus::Invalid => "WRONG",
+                HomoServiceStatus::Error => "ERROR",
             }
             .into(),
-            ip: response.remote_address.map(|a| a.to_string()),
+            ip: response.remote_address.map(|a| a.ip().to_string()),
             duration: response.duration.as_secs_f64(),
         }
     }
