@@ -14,7 +14,7 @@ pub enum CheckResponseFormat {
 /// Represents a data object of query parameter of `GET /check/*`.
 #[derive(Debug, Deserialize)]
 pub struct CheckQueryParameter {
-    pub format: CheckResponseFormat,
+    pub format: Option<CheckResponseFormat>,
 }
 
 /// Represents a data object of 'initialize' event in `GET /check`.

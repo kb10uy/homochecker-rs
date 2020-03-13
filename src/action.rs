@@ -80,8 +80,8 @@ async fn check_services(
         .unwrap();
 
     match query.format {
-        CheckResponseFormat::ServerSentEvent => check_services_sse(client, services).await,
-        CheckResponseFormat::Json => check_services_json(client, services).await,
+        Some(CheckResponseFormat::ServerSentEvent) | None => check_services_sse(client, services).await,
+        Some(CheckResponseFormat::Json) => check_services_json(client, services).await,
     }
 }
 

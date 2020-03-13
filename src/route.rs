@@ -12,7 +12,7 @@ pub fn homochecker(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     homochecker_check_all(connection.clone())
         .or(homochecker_check_user(connection))
-        .with(warp::log("homochecker-rs"))
+        .with(warp::log("homochecker_rs"))
 }
 
 /// Returns a filter attaches the connection pool.
