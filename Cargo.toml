@@ -36,6 +36,9 @@ version = "0.4"
 version = "1.0"
 features = ["derive"]
 
+[dependencies.serde_json]
+version = "1.0"
+
 # Asynchronous
 
 [dependencies.tokio]
@@ -52,6 +55,7 @@ version = "0.2"
 
 [dependencies.reqwest]
 version = "0.10"
+features = ["json"]
 
 # Database
 

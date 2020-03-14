@@ -70,6 +70,16 @@ impl Provider {
             _ => Err("Invalid screen name expression".into()),
         }
     }
+
+    pub fn to_entity_string(&self) -> String {
+        match self {
+            Provider::Twitter(s) => s.to_owned(),
+            Provider::Mastodon {
+                screen_name,
+                domain,
+            } => format!("@{}@{}", screen_name, domain),
+        }
+    }
 }
 
 impl HomoService {
