@@ -61,3 +61,6 @@ features = ["json"]
 
 [dependencies.tokio-postgres]
 version = "0.5"
+
+[dependencies.redis]
+version = "0.15"

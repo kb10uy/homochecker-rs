@@ -1,14 +1,15 @@
 mod api;
 mod data;
 mod repository;
-mod validation;
 mod service;
+mod validation;
 
 use std::{collections::HashMap, env::vars, net::SocketAddr, process::exit, sync::Arc};
 
 use dotenv::dotenv;
 use log::{error, info};
-use tokio::spawn;
+use redis::Client;
+use tokio::{spawn, sync::Mutex};
 use tokio_postgres::NoTls;
 
 #[tokio::main]
@@ -17,25 +18,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     let envs: HashMap<_, _> = vars().collect();
 
-    // コネクション
+    // PostgreSQL コネクション
     let db_config = envs.get("DATABASE_CONFIG").unwrap_or_else(|| {
         error!("Environment variable `DATABASE_CONFIG` must be set!");
         exit(1);
     });
-
-    let (client, connection) = tokio_postgres::connect(db_config, NoTls)
+    let (pg_client, pg_conn) = tokio_postgres::connect(db_config, NoTls)
         .await
         .unwrap_or_else(|e| {
             error!("Failed to establish connection to database: {}", e);
             exit(1);
         });
     spawn(async move {
-        if let Err(e) = connection.await {
+        if let Err(e) = pg_conn.await {
             error!("Connection error: {}", e);
             exit(1);
         }
     });
-    let client = Arc::new(client);
+    let postgres = Arc::new(pg_client);
+
+    // Redis コネクション
+    let redis_config = envs.get("REDIS_CONFIG").unwrap_or_else(|| {
+        error!("Environment variable `REDIS_CONFIG` must be set!");
+        exit(1);
+    });
+    let redis_client = Client::open(&redis_config[..]).unwrap_or_else(|e| {
+        error!("Redis connection error: {}", e);
+        exit(1);
+    });
+    let redis = Arc::new(Mutex::new(
+        redis_client
+            .get_async_connection()
+            .await
+            .unwrap_or_else(|e| {
+                error!("Redis connection error: {}", e);
+                exit(1);
+            }),
+    ));
 
     // サーバー
     let listen_address: SocketAddr = envs
@@ -50,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             exit(1);
         });
 
-    let routes = api::route::homochecker(client);
+    let routes = api::route::homochecker(api::route::Connections { postgres, redis });
 
     info!("Listening on {}", listen_address);
     warp::serve(routes).run(listen_address).await;

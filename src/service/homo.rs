@@ -5,13 +5,17 @@ use crate::{
 use std::{collections::HashMap, error::Error, sync::Arc, time::Instant};
 
 use lazy_static::lazy_static;
-use log::warn;
+use log::{info, warn};
+use redis::{aio::Connection as RedisConnection, AsyncCommands};
 use regex::Regex;
 use reqwest::{Client, Error as ReqwestError, Response};
 use serde_json::Value as JsonValue;
 use tokio::{
     join,
-    sync::broadcast::{channel, Receiver, Sender},
+    sync::{
+        broadcast::{channel, Receiver, Sender},
+        Mutex,
+    },
 };
 
 pub type AvatarResolverAttached = (
@@ -59,19 +63,46 @@ async fn validate_status(response: Result<Response, ReqwestError>) -> HomoServic
 }
 
 pub async fn fetch_avatar(
+    redis: Arc<Mutex<RedisConnection>>,
     client: Client,
     provider: Arc<Provider>,
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
-    // TODO: キャッシュする
-    let key = provider.to_entity_string();
+    let locked_redis = &mut *(redis.lock().await);
 
-    match &*provider {
+    let key = provider.to_entity_string();
+    match locked_redis.get(&key).await {
+        Ok(Some(cached)) => return Ok(cached),
+        Ok(None) => (),
+        Err(e) => {
+            warn!("Failed to access to Redis: {}", e);
+        }
+    }
+
+    let fetched = match &*provider {
         Provider::Twitter(sn) => fetch_twitter_avatar(client, &sn).await,
         Provider::Mastodon {
             screen_name,
             domain,
         } => fetch_mastodon_avatar(client, &screen_name, &domain).await,
-    }
+    }?;
+
+    match redis::cmd("SET")
+        .arg(&key)
+        .arg(&fetched)
+        .arg("EX")
+        .arg(86400usize)
+        .query_async(locked_redis)
+        .await
+    {
+        Ok(()) => {
+            info!("Cached avatar URL of {}: {}", key, fetched);
+        }
+        Err(e) => {
+            warn!("Failed to access to Redis: {}", e);
+        }
+    };
+
+    Ok(fetched)
 }
 
 /// Attaches broadcasters to services.
