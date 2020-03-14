@@ -17,7 +17,10 @@ use futures::future::join_all;
 use log::{error, warn};
 use redis::aio::Connection as RedisConnection;
 use reqwest::{redirect::Policy as RedirectPolicy, Client};
-use tokio::{spawn, sync::{Mutex, mpsc::channel as tokio_channel}};
+use tokio::{
+    spawn,
+    sync::{mpsc::channel as tokio_channel, Mutex},
+};
 use warp::{filters::sse::ServerSentEvent, http::StatusCode, reply, sse, Reply};
 
 /// Entrypoint of `GET /check`.
@@ -125,9 +128,7 @@ async fn check_services_sse(
         let client = client.clone();
         let redis = redis.clone();
         spawn(async move {
-            let avatar = fetch_avatar(redis, client, Arc::new(provider))
-                .await
-                .unwrap_or_else(|_| "".into());
+            let avatar = fetch_avatar(redis, client, Arc::new(provider)).await;
             match tx.send(avatar) {
                 Ok(_) => (),
                 Err(e) => {
@@ -191,9 +192,7 @@ async fn check_services_json(
         let client = client.clone();
         let redis = redis.clone();
         spawn(async move {
-            let avatar = fetch_avatar(redis, client, Arc::new(provider))
-                .await
-                .unwrap_or_else(|_| "".into());
+            let avatar = fetch_avatar(redis, client, Arc::new(provider)).await;
             match tx.send(avatar) {
                 Ok(_) => (),
                 Err(e) => {

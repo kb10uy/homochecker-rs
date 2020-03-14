@@ -1,7 +1,10 @@
 //! Contains abstract domain model.
 
 use crate::repository::User;
-use std::{net::SocketAddr, time::Duration};
+use std::{error::Error, net::SocketAddr, time::Duration};
+
+use log::warn;
+use url::Url;
 
 /// Represents a person who provides the homo service.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -17,13 +20,13 @@ pub enum Provider {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HomoService {
     /// The URL to this service.
-    pub service_url: String,
+    pub service_url: Url,
 
     /// The screen name of this user.
     pub provider: Provider,
 
     /// The URL to the avatar image of this user.
-    pub avatar_url: String,
+    pub avatar_url: Url,
 }
 
 /// Represents the status of the homo service.
@@ -58,7 +61,7 @@ pub struct HomoServiceResponse {
     pub duration: Duration,
 
     /// The avatar URL of the provider.
-    pub avatar_url: String,
+    pub avatar_url: Option<Url>,
 }
 
 impl Provider {
@@ -100,11 +103,36 @@ impl Provider {
 
 impl HomoService {
     /// Builds `HomoService` from `User` entity.
-    pub fn from_user(user: &User) -> Result<HomoService, String> {
+    pub fn from_user(user: &User) -> Result<HomoService, Box<dyn Error + Send + Sync>> {
+        let provider = Provider::from_entity(&user.screen_name)?;
+        let avatar_url = Url::parse(&user.avatar_url)?;
+        let service_url = Url::parse(&user.service_url)?;
         Ok(HomoService {
-            provider: Provider::from_entity(&user.screen_name)?,
-            avatar_url: user.avatar_url.to_owned(),
-            service_url: user.service_url.to_owned(),
+            provider,
+            avatar_url,
+            service_url,
         })
     }
 }
+
+/// An extention trait provides `unwrap_or_warn`.
+pub trait UnwrapOrWarnExt {
+    type Output;
+
+    fn unwrap_or_warn(self, message: impl AsRef<str>) -> Self::Output;
+}
+
+impl<T, E: Error> UnwrapOrWarnExt for Result<T, E> {
+    type Output = Option<T>;
+
+    fn unwrap_or_warn(self, message: impl AsRef<str>) -> Option<T> {
+        match self {
+            Ok(t) => Some(t),
+            Err(e) => {
+                warn!("{}: {}", message.as_ref(), e);
+                None
+            }
+        }
+    }
+}
+

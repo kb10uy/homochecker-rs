@@ -1,5 +1,5 @@
 use crate::{
-    data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider},
+    data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider, UnwrapOrWarnExt},
     validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},
 };
 use std::{collections::HashMap, error::Error, sync::Arc, time::Instant};
@@ -17,19 +17,20 @@ use tokio::{
         Mutex,
     },
 };
+use url::Url;
 
 pub type AvatarResolverAttached = (
-    Vec<(HomoService, Receiver<String>)>,
-    HashMap<Provider, Sender<String>>,
+    Vec<(HomoService, Receiver<Option<Url>>)>,
+    HashMap<Provider, Sender<Option<Url>>>,
 );
 
 /// Requests to the service and validates its response whether contains appropriate link(s).
 pub async fn request_service(
     client: Client,
     service: Arc<HomoService>,
-    mut avatar_url_receiver: Receiver<String>,
+    mut avatar_url_receiver: Receiver<Option<Url>>,
 ) -> Result<HomoServiceResponse, Box<dyn Error + Send + Sync>> {
-    let request = client.get(&service.service_url);
+    let request = client.get(&service.service_url[..]);
     let start_at = Instant::now();
     let response = request.send().await;
 
@@ -66,12 +67,13 @@ pub async fn fetch_avatar(
     redis: Arc<Mutex<RedisConnection>>,
     client: Client,
     provider: Arc<Provider>,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
+) -> Option<Url> {
     let locked_redis = &mut *(redis.lock().await);
 
     let key = provider.to_cache_key();
-    match locked_redis.get(&key).await {
-        Ok(Some(cached)) => return Ok(cached),
+    let cached: Result<Option<String>, _> = locked_redis.get(&key).await;
+    match cached {
+        Ok(Some(cached)) => return Url::parse(&cached).unwrap_or_warn("Invalid URL"),
         Ok(None) => (),
         Err(e) => {
             warn!("Failed to access to Redis: {}", e);
@@ -88,7 +90,7 @@ pub async fn fetch_avatar(
 
     match redis::cmd("SET")
         .arg(&key)
-        .arg(&fetched)
+        .arg(fetched.to_string())
         .arg("EX")
         .arg(86400usize)
         .query_async(locked_redis)
@@ -102,7 +104,7 @@ pub async fn fetch_avatar(
         }
     };
 
-    Ok(fetched)
+    Some(fetched)
 }
 
 /// Attaches broadcasters to services.
@@ -111,7 +113,7 @@ pub fn attach_avatar_resolver(
     services: impl IntoIterator<Item = HomoService>,
 ) -> AvatarResolverAttached {
     let mut attached = vec![];
-    let mut txmap: HashMap<Provider, Sender<String>> = HashMap::new();
+    let mut txmap: HashMap<Provider, Sender<Option<Url>>> = HashMap::new();
     for service in services {
         let sn = &service.provider;
         if let Some(tx) = txmap.get(&sn) {
@@ -127,10 +129,7 @@ pub fn attach_avatar_resolver(
 }
 
 /// Fetches specific Mastodon user avatar URL from Web.
-async fn fetch_twitter_avatar(
-    client: Client,
-    screen_name: &str,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
+async fn fetch_twitter_avatar(client: Client, screen_name: &str) -> Option<Url> {
     lazy_static! {
         static ref REGEX_USER_AVATAR: Regex =
             Regex::new(r#"src=["'](https://[ap]bs\.twimg\.com/[^"']+)"#).unwrap();
@@ -140,38 +139,44 @@ async fn fetch_twitter_avatar(
         "https://twitter.com/intent/user?screen_name={}",
         screen_name
     ));
-    let html = request.send().await?.text().await?;
+    let html = request
+        .send()
+        .await
+        .unwrap_or_warn("Failed to fetch Twitter intent")?
+        .text()
+        .await
+        .unwrap_or_warn("Body error")?;
 
     if let Some(capture) = REGEX_USER_AVATAR.captures(&html) {
-        Ok(capture[1].into())
+        Url::parse(&capture[1]).unwrap_or_warn("Invalid URL")
     } else {
-        let message = format!(
+        warn!(
             "Avatar image not found in Twitter intent page: {}",
             screen_name
         );
-        warn!("{}", message);
-        Err(message.into())
+        None
     }
 }
 
 /// Fetches specific Mastodon user avatar URL from Web.
-async fn fetch_mastodon_avatar(
-    client: Client,
-    screen_name: &str,
-    domain: &str,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
+async fn fetch_mastodon_avatar(client: Client, screen_name: &str, domain: &str) -> Option<Url> {
     let request = client
         .get(&format!("https://{}/users/{}.json", domain, screen_name))
         .header("Accept", "application/json");
 
-    let user = request.send().await?.json::<JsonValue>().await?;
-    let avatar_url = &user["icon"]["url"];
-    match avatar_url {
-        JsonValue::String(s) => Ok(s.to_owned()),
-        _ => {
-            let message = format!("user.icon.url was not string: {}", avatar_url);
-            warn!("{}", message);
-            Err(message.into())
-        }
+    let user = request
+        .send()
+        .await
+        .unwrap_or_warn("Failed to fetch Mastodon user JSON")?
+        .json::<JsonValue>()
+        .await
+        .unwrap_or_warn("Invalid Mastodon user JSON")?;
+
+    if let JsonValue::String(s) = &user["icon"]["url"] {
+        Url::parse(&s).unwrap_or_warn("Invalid URL")
+    } else {
+        let message = format!("user.icon.url was not string: {}", &user["icon"]["url"]);
+        warn!("{}", message);
+        None
     }
 }
