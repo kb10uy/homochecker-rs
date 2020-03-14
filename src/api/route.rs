@@ -23,6 +23,7 @@ pub fn homochecker(
         .or(homochecker_check_user(connection.clone()))
         .or(homochecker_list_all(connection.clone()))
         .or(homochecker_list_user(connection.clone()))
+        .or(homochecker_badge(connection))
         .with(warp::log("homochecker_rs"))
 }
 
@@ -72,4 +73,14 @@ fn homochecker_list_user(
         .and(warp::query())
         .and(attach_pool(connection))
         .and_then(action::list_user)
+}
+
+fn homochecker_badge(
+    connection: Connections,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path!("badge")
+        .and(warp::get())
+        .and(warp::query())
+        .and(attach_pool(connection))
+        .and_then(action::redirect_badge)
 }

@@ -24,6 +24,14 @@ pub struct User {
 pub struct UserRepository;
 
 impl UserRepository {
+    /// Counts all records in `users`.
+    pub async fn count_all(client: Arc<Client>) -> Result<i32, Box<dyn Error>> {
+        let row = client
+            .query_one(r#"SELECT COUNT(*)::INTEGER AS records FROM "users";"#, &[])
+            .await?;
+        Ok(row.try_get("records")?)
+    }
+
     /// Fetches all record from `users`.
     pub async fn fetch_all(client: Arc<Client>) -> Result<Vec<User>, Box<dyn Error>> {
         let rows = client
@@ -43,7 +51,7 @@ impl UserRepository {
     ) -> Result<Vec<User>, Box<dyn Error>> {
         let rows = client
             .query(
-                r#"SELECT * FROM "users" WHERE screen_name = $1 ORDER BY "id";"#,
+                r#"SELECT * FROM "users" WHERE "screen_name" = $1 ORDER BY "id";"#,
                 &[&screen_name],
             )
             .await?;

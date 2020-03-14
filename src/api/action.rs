@@ -12,17 +12,23 @@ use crate::{
     repository::{User, UserRepository},
     service::homo::{attach_avatar_resolver, fetch_avatar, request_service},
 };
-use std::{convert::Infallible, iter::repeat, sync::Arc, time::Duration};
+use std::{convert::Infallible, iter::repeat, str::FromStr, sync::Arc, time::Duration};
 
 use futures::future::join_all;
 use log::{error, warn};
 use redis::aio::Connection as RedisConnection;
 use reqwest::{redirect::Policy as RedirectPolicy, Client};
+use serde_json::Value as JsonValue;
 use tokio::{
     spawn,
     sync::{mpsc::channel as tokio_channel, Mutex},
 };
-use warp::{filters::sse::ServerSentEvent, http::StatusCode, reply, sse, Reply};
+use url::Url;
+use warp::{
+    filters::sse::ServerSentEvent,
+    http::{StatusCode, Uri},
+    redirect, reply, sse, Reply,
+};
 
 /// Entrypoint of `GET /check`.
 pub async fn check_all(
@@ -265,6 +271,7 @@ pub async fn list_user(
     list_services(users.iter(), query).await
 }
 
+/// Lists given services in specific format.
 async fn list_services(
     users: impl IntoIterator<Item = &User>,
     query: ListQueryParameter,
@@ -308,4 +315,27 @@ async fn list_services(
             Ok(Box::new(sql))
         }
     }
+}
+
+pub async fn redirect_badge(
+    _query: JsonValue,
+    conn: Connections,
+) -> Result<Box<dyn Reply>, Infallible> {
+    let count = match UserRepository::count_all(conn.postgres).await {
+        Ok(c) => c,
+        Err(e) => {
+            let message = format!("Failed to fetch users count: {}", e);
+            error!("{}", message);
+            return Ok(Box::new(reply::with_status(
+                message,
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
+
+    let mut url = Url::parse("https://img.shields.io").unwrap();
+    url.set_path(&format!("/badge/homo-{}%20registered-7a6544.svg", count));
+
+    let uri = Uri::from_str(&url[..]).unwrap();
+    Ok(Box::new(redirect::redirect(uri)))
 }
