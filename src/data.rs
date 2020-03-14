@@ -4,7 +4,7 @@ use crate::repository::User;
 use std::{net::SocketAddr, time::Duration};
 
 /// Represents a person who provides the homo service.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Provider {
     /// A Twitter user.
     Twitter(String),
@@ -56,6 +56,9 @@ pub struct HomoServiceResponse {
 
     /// The response time.
     pub duration: Duration,
+
+    /// The avatar URL of the provider.
+    pub avatar_url: String,
 }
 
 impl Provider {

@@ -2,49 +2,71 @@ use crate::{
     data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider},
     validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},
 };
-use std::{error::Error, sync::Arc, time::Instant};
+use std::{collections::HashMap, error::Error, sync::Arc, time::Instant};
 
 use lazy_static::lazy_static;
 use log::warn;
 use regex::Regex;
-use reqwest::{Client, Error as ReqwestError};
+use reqwest::{Client, Error as ReqwestError, Response};
 use serde_json::Value as JsonValue;
+use tokio::{
+    join,
+    sync::broadcast::{channel, Receiver, Sender},
+};
+
+pub type AvatarResolverAttached = (
+    Vec<(HomoService, Receiver<String>)>,
+    HashMap<Provider, Sender<String>>,
+);
 
 /// Requests to the service and validates its response whether contains appropriate link(s).
 pub async fn request_service(
     client: Client,
     service: Arc<HomoService>,
-) -> Result<HomoServiceResponse, ReqwestError> {
+    mut avatar_url_receiver: Receiver<String>,
+) -> Result<HomoServiceResponse, Box<dyn Error + Send + Sync>> {
     let request = client.get(&service.service_url);
     let start_at = Instant::now();
     let response = request.send().await;
 
     let duration = start_at.elapsed();
     let remote_address = response.as_ref().map(|r| r.remote_addr()).ok().flatten();
-    let status = match response {
-        Ok(r) => match r.validate::<ResponseHeaderValidator>().await {
-            Some(s) => s,
-            None => r
-                .into_validate::<ResponseHtmlValidator>()
-                .await
-                .unwrap_or(HomoServiceStatus::Invalid),
-        },
-        Err(_) => HomoServiceStatus::Error,
-    };
+
+    // アバター URL と リダイレクト判定は並行
+    let (avatar_url, status) = join!(avatar_url_receiver.recv(), validate_status(response));
 
     Ok(HomoServiceResponse {
         status,
         remote_address,
         duration,
+        avatar_url: avatar_url?,
     })
 }
 
-async fn fetch_avatar(client: Client, provider: Arc<Provider>) -> Result<String, Box<dyn Error>> {
+/// Validates the response from the service.
+async fn validate_status(response: Result<Response, ReqwestError>) -> HomoServiceStatus {
+    let response = match response {
+        Ok(r) => r,
+        Err(_) => return HomoServiceStatus::Error,
+    };
+    match response.validate::<ResponseHeaderValidator>().await {
+        Some(s) => s,
+        None => response
+            .into_validate::<ResponseHtmlValidator>()
+            .await
+            .unwrap_or(HomoServiceStatus::Invalid),
+    }
+}
+
+pub async fn fetch_avatar(
+    client: Client,
+    provider: Arc<Provider>,
+) -> Result<String, Box<dyn Error + Send + Sync>> {
     // TODO: キャッシュする
     let key = provider.to_entity_string();
 
     match &*provider {
-        Provider::Twitter(sn) => fetch_twutter_avatar(client, &sn).await,
+        Provider::Twitter(sn) => fetch_twitter_avatar(client, &sn).await,
         Provider::Mastodon {
             screen_name,
             domain,
@@ -52,8 +74,32 @@ async fn fetch_avatar(client: Client, provider: Arc<Provider>) -> Result<String,
     }
 }
 
+/// Attaches broadcasters to services.
+/// Second tuple element is a map from screen name to `Sender`.
+pub fn attach_avatar_resolver(
+    services: impl IntoIterator<Item = HomoService>,
+) -> AvatarResolverAttached {
+    let mut attached = vec![];
+    let mut txmap: HashMap<Provider, Sender<String>> = HashMap::new();
+    for service in services {
+        let sn = &service.provider;
+        if let Some(tx) = txmap.get(&sn) {
+            attached.push((service, tx.subscribe()));
+        } else {
+            let (tx, rx) = channel(4);
+            txmap.insert(sn.clone(), tx);
+            attached.push((service, rx));
+        }
+    }
+
+    (attached, txmap)
+}
+
 /// Fetches specific Mastodon user avatar URL from Web.
-async fn fetch_twutter_avatar(client: Client, screen_name: &str) -> Result<String, Box<dyn Error>> {
+async fn fetch_twitter_avatar(
+    client: Client,
+    screen_name: &str,
+) -> Result<String, Box<dyn Error + Send + Sync>> {
     lazy_static! {
         static ref REGEX_USER_AVATAR: Regex =
             Regex::new(r#"src=["'](https://[ap]bs\.twimg\.com/[^"']+)"#).unwrap();
@@ -82,7 +128,7 @@ async fn fetch_mastodon_avatar(
     client: Client,
     screen_name: &str,
     domain: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String, Box<dyn Error + Send + Sync>> {
     let request = client
         .get(&format!("https://{}/users/{}.json", domain, screen_name))
         .header("Accept", "application/json");

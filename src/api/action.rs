@@ -6,7 +6,7 @@ use super::data::{
 use crate::{
     data::HomoService,
     repository::{User, UserRepository},
-    service::homo::request_service,
+    service::homo::{attach_avatar_resolver, fetch_avatar, request_service},
 };
 use std::{convert::Infallible, iter::repeat, sync::Arc, time::Duration};
 
@@ -113,12 +113,24 @@ async fn check_services_sse(
     services: Vec<HomoService>,
 ) -> Result<Box<dyn Reply>, Infallible> {
     let (tx, rx) = tokio_channel(64);
+    let (service_sets, avatar_resolvers) = attach_avatar_resolver(services);
+
+    // avatar_url 解決
+    for (provider, tx) in avatar_resolvers {
+        let client = client.clone();
+        spawn(async move {
+            let avatar = fetch_avatar(client, Arc::new(provider))
+                .await
+                .unwrap_or_else(|_| "".into());
+            tx.send(avatar);
+        });
+    }
 
     // initialize 送信
     let init_message: Result<_, Infallible> = Ok((
         sse::event("initialize"),
         sse::json(CheckEventInitializeData {
-            count: services.len(),
+            count: service_sets.len(),
         })
         .into_a(),
     ));
@@ -127,13 +139,13 @@ async fn check_services_sse(
     });
 
     // response 送信
-    for service in services {
+    for (service, resolver) in service_sets {
         let service = Arc::new(service);
         let cl = client.clone();
         let srv = service.clone();
         let sender = tx.clone();
         spawn(async move {
-            let response = request_service(cl.clone(), srv.clone()).await;
+            let response = request_service(cl.clone(), srv.clone(), resolver).await;
             let message = match response {
                 Ok(r) => (
                     sse::event("response"),
@@ -159,14 +171,31 @@ async fn check_services_json(
     client: Client,
     services: Vec<HomoService>,
 ) -> Result<Box<dyn Reply>, Infallible> {
-    let clients = repeat(client);
-    let result_futures = services.into_iter().zip(clients).map(|(s, c)| async {
-        let service = Arc::new(s);
-        match request_service(c, service.clone()).await {
-            Ok(response) => Some(CheckEventResponseData::build(&service, &response)),
-            Err(_) => None,
-        }
-    });
+    let clients = repeat(client.clone());
+    let (service_sets, avatar_resolvers) = attach_avatar_resolver(services);
+
+    // avatar_url 解決
+    for (provider, tx) in avatar_resolvers {
+        let client = client.clone();
+        spawn(async move {
+            let avatar = fetch_avatar(client, Arc::new(provider))
+                .await
+                .unwrap_or_else(|_| "".into());
+            tx.send(avatar);
+        });
+    }
+
+    // 一斉送信
+    let result_futures = service_sets
+        .into_iter()
+        .zip(clients)
+        .map(|((s, rx), c)| async {
+            let service = Arc::new(s);
+            match request_service(c, service.clone(), rx).await {
+                Ok(response) => Some(CheckEventResponseData::build(&service, &response)),
+                Err(_) => None,
+            }
+        });
     let results: Vec<_> = join_all(result_futures)
         .await
         .into_iter()

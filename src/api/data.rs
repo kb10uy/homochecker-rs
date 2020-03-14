@@ -45,7 +45,7 @@ pub struct CheckEventResponseData {
 
 impl CheckEventResponseData {
     pub fn build(service: &HomoService, response: &HomoServiceResponse) -> CheckEventResponseData {
-        // TODO: icon をキャッシュに
+        // TODO: display_ur; を整形
         CheckEventResponseData {
             homo: CheckEventResponseDataHomo {
                 screen_name: match &service.provider {
@@ -60,7 +60,7 @@ impl CheckEventResponseData {
                     Provider::Mastodon { .. } => "mastodon",
                 }
                 .into(),
-                icon: service.avatar_url.to_owned(),
+                icon: response.avatar_url.to_owned(),
                 url: service.service_url.to_owned(),
                 display_url: service.service_url.to_owned(),
                 secure: service.service_url.starts_with("https"),
