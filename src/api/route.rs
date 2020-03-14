@@ -3,8 +3,8 @@
 use super::{action, data};
 use std::{convert::Infallible, sync::Arc};
 
-use tokio::sync::Mutex;
 use redis::aio::Connection as RedisConnection;
+use tokio::sync::Mutex;
 use tokio_postgres::Client as PostgresClient;
 use warp::{Filter, Rejection, Reply};
 
@@ -20,7 +20,9 @@ pub fn homochecker(
     connection: Connections,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     homochecker_check_all(connection.clone())
-        .or(homochecker_check_user(connection))
+        .or(homochecker_check_user(connection.clone()))
+        .or(homochecker_list_all(connection.clone()))
+        .or(homochecker_list_user(connection.clone()))
         .with(warp::log("homochecker_rs"))
 }
 
@@ -50,4 +52,24 @@ fn homochecker_check_user(
         .and(warp::query())
         .and(attach_pool(connection))
         .and_then(action::check_user)
+}
+
+fn homochecker_list_all(
+    connection: Connections,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path!("list")
+        .and(warp::get())
+        .and(warp::query())
+        .and(attach_pool(connection))
+        .and_then(action::list_all)
+}
+
+fn homochecker_list_user(
+    connection: Connections,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path!("list" / String)
+        .and(warp::get())
+        .and(warp::query())
+        .and(attach_pool(connection))
+        .and_then(action::list_user)
 }

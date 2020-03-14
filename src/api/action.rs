@@ -3,11 +3,12 @@
 use super::{
     data::{
         CheckEventInitializeData, CheckEventResponseData, CheckQueryParameter, CheckResponseFormat,
+        ListJsonResponse, ListQueryParameter, ListResponseFormat,
     },
     route::Connections,
 };
 use crate::{
-    data::HomoService,
+    data::{HomoService, Provider},
     repository::{User, UserRepository},
     service::homo::{attach_avatar_resolver, fetch_avatar, request_service},
 };
@@ -220,4 +221,91 @@ async fn check_services_json(
         .collect();
 
     Ok(Box::new(reply::json(&results)))
+}
+
+/// Entrypoint of `GET /list`.
+pub async fn list_all(
+    query: ListQueryParameter,
+    conn: Connections,
+) -> Result<Box<dyn Reply>, Infallible> {
+    let users = match UserRepository::fetch_all(conn.postgres).await {
+        Ok(users) => users,
+        Err(e) => {
+            let message = format!("Failed to fetch users: {}", e);
+            error!("{}", message);
+            return Ok(Box::new(reply::with_status(
+                message,
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
+
+    list_services(users.iter(), query).await
+}
+
+/// Entrypoint of `GET /check/:user`.
+pub async fn list_user(
+    screen_name: String,
+    query: ListQueryParameter,
+    conn: Connections,
+) -> Result<Box<dyn Reply>, Infallible> {
+    // TODO: screen_name のバリデーション
+    let users = match UserRepository::fetch_by_screen_name(conn.postgres, &screen_name).await {
+        Ok(users) => users,
+        Err(e) => {
+            let message = format!("Failed to fetch users: {}", e);
+            error!("{}", message);
+            return Ok(Box::new(reply::with_status(
+                message,
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
+
+    list_services(users.iter(), query).await
+}
+
+async fn list_services(
+    users: impl IntoIterator<Item = &User>,
+    query: ListQueryParameter,
+) -> Result<Box<dyn Reply>, Infallible> {
+    let services: Vec<_> = users
+        .into_iter()
+        .map(|r| match HomoService::from_user(r) {
+            Ok(hs) => Some(hs),
+            Err(e) => {
+                warn!("Failed to construct HomoService: {}", e);
+                None
+            }
+        })
+        .flatten()
+        .collect();
+
+    if services.is_empty() {
+        // 0 件のときは 404 として扱う
+        return Ok(Box::new(reply::with_status(
+            "No such user",
+            StatusCode::NOT_FOUND,
+        )));
+    }
+
+    match query.format {
+        Some(ListResponseFormat::Json) | None => {
+            let json: Vec<_> = services.iter().map(ListJsonResponse::build).collect();
+            Ok(Box::new(reply::json(&json)))
+        }
+        Some(ListResponseFormat::Sql) => {
+            let mut sql = String::with_capacity(16384);
+            for service in services {
+                // TODO: chitoku-k/HomoChecker は MySQL のクエリを返している
+                //       PostgreSQL のものも返せるようにしたい
+                let (sn, us) = match service.provider {
+                    Provider::Twitter(sn) => (sn, "twitter"),
+                    Provider::Mastodon { .. } => (service.provider.to_entity_string(), "mastodon"),
+                };
+                sql.push_str(&format!("INSERT INTO `users` (`screen_name`, `service`, `url`) VALUES ('{}', '{}', '{}');\n", sn, us, service.service_url));
+            }
+            Ok(Box::new(sql))
+        }
+    }
 }

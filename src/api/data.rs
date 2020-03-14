@@ -60,6 +60,7 @@ pub struct CheckEventResponseData {
 }
 
 /// Represents a response object of `GET /list/*`.
+#[derive(Debug, Serialize)]
 pub struct ListJsonResponse {
     pub screen_name: String,
     pub service: String,
