@@ -24,9 +24,6 @@ pub struct HomoService {
 
     /// The screen name of this user.
     pub provider: Provider,
-
-    /// The URL to the avatar image of this user.
-    pub avatar_url: Url,
 }
 
 /// Represents the status of the homo service.
@@ -105,11 +102,9 @@ impl HomoService {
     /// Builds `HomoService` from `User` entity.
     pub fn from_user(user: &User) -> Result<HomoService, Box<dyn Error + Send + Sync>> {
         let provider = Provider::from_entity(&user.screen_name)?;
-        let avatar_url = Url::parse(&user.avatar_url)?;
-        let service_url = Url::parse(&user.service_url)?;
+        let service_url = Url::parse(&user.url)?;
         Ok(HomoService {
             provider,
-            avatar_url,
             service_url,
         })
     }

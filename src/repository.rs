@@ -16,8 +16,8 @@ where
 pub struct User {
     pub id: i32,
     pub screen_name: String,
-    pub avatar_url: String,
-    pub service_url: String,
+    pub service: String,
+    pub url: String,
 }
 
 /// Represents the repository corresponding `User`.
@@ -69,8 +69,8 @@ impl FromRow for User {
         Ok(User {
             id: row.try_get("id")?,
             screen_name: row.try_get("screen_name")?,
-            avatar_url: row.try_get("avatar_url")?,
-            service_url: row.try_get("service_url")?,
+            service: row.try_get("service")?,
+            url: row.try_get("url")?,
         })
     }
 }
