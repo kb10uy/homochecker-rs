@@ -1,5 +1,8 @@
 # homochecker-rs
-Rust implementation of [chitoku-k/HomoChecker](https://github.com/chitoku-k/HomoChecker) API.
+![homochecker-rs](https://github.com/kb10uy/homocheker-rs/workflows/Build+and+Test/badge.svg)
+
+Rust implementation of [chitoku-k/HomoChecker](https://github.com/chitoku-k/HomoChecker) API.  
+PostgreSQL for database backend, and Redis for cache.
 
 * 🚀 **Blazingly Fast**
 * 📦 **Easy to Use**
