@@ -1,4 +1,5 @@
-use crate::{homo::HomoServiceStatus, validation::response::IntoValidateResponse};
+use super::IntoValidateResponse;
+use crate::data::HomoServiceStatus;
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;

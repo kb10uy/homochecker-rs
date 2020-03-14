@@ -1,9 +1,8 @@
-mod action;
 mod api;
-mod route;
-mod homo;
+mod data;
 mod repository;
 mod validation;
+mod service;
 
 use std::{collections::HashMap, env::vars, net::SocketAddr, process::exit, sync::Arc};
 
@@ -51,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             exit(1);
         });
 
-    let routes = route::homochecker(client);
+    let routes = api::route::homochecker(client);
 
     info!("Listening on {}", listen_address);
     warp::serve(routes).run(listen_address).await;

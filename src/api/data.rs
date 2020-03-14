@@ -1,4 +1,4 @@
-use crate::homo::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider};
+use crate::data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider};
 
 use serde::{Deserialize, Serialize};
 

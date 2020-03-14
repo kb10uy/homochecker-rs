@@ -1,6 +1,6 @@
 //! Contains warp filters.
 
-use crate::{action, api::*};
+use super::{action, data};
 use std::{convert::Infallible, sync::Arc};
 
 use tokio_postgres::Client;
@@ -28,9 +28,9 @@ fn homochecker_check_all(
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     warp::path!("check")
         .and(warp::get())
-        .and(warp::query::<CheckQueryParameter>())
+        .and(warp::query::<data::CheckQueryParameter>())
         .and(attach_pool(connection))
-        .and_then(crate::action::check_all)
+        .and_then(action::check_all)
 }
 
 fn homochecker_check_user(

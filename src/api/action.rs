@@ -1,19 +1,21 @@
 //! Contains application actions.
 
-use crate::{api::*, homo::*, repository::*};
-use std::{
-    convert::Infallible,
-    iter::repeat,
-    sync::Arc,
-    time::{Duration, Instant},
+use super::data::{
+    CheckEventInitializeData, CheckEventResponseData, CheckQueryParameter, CheckResponseFormat,
 };
+use crate::{
+    data::HomoService,
+    repository::{User, UserRepository},
+    service::homo::request_service,
+};
+use std::{convert::Infallible, iter::repeat, sync::Arc, time::Duration};
 
 use futures::future::join_all;
 use log::{error, warn};
-use reqwest::{redirect::Policy as RedirectPolicy, Client, Error as ReqwestError};
+use reqwest::{redirect::Policy as RedirectPolicy, Client};
 use tokio::{spawn, sync::mpsc::channel as tokio_channel};
 use tokio_postgres::Client as PostgresClient;
-use warp::{filters::sse::ServerSentEvent, http, reply, sse, Reply};
+use warp::{filters::sse::ServerSentEvent, http::StatusCode, reply, sse, Reply};
 
 /// Entrypoint of `GET /check`.
 pub async fn check_all(
@@ -27,7 +29,7 @@ pub async fn check_all(
             error!("{}", message);
             return Ok(Box::new(reply::with_status(
                 message,
-                http::StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::INTERNAL_SERVER_ERROR,
             )));
         }
     };
@@ -49,7 +51,7 @@ pub async fn check_user(
             error!("{}", message);
             return Ok(Box::new(reply::with_status(
                 message,
-                http::StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::INTERNAL_SERVER_ERROR,
             )));
         }
     };
@@ -73,6 +75,14 @@ async fn check_services(
         })
         .flatten()
         .collect();
+
+    if services.is_empty() {
+        // 0 件のときは 404 として扱う
+        return Ok(Box::new(reply::with_status(
+            "No such user",
+            StatusCode::NOT_FOUND,
+        )));
+    }
 
     let client = Client::builder()
         .redirect(RedirectPolicy::custom(|attempt| {
@@ -164,37 +174,4 @@ async fn check_services_json(
         .collect();
 
     Ok(Box::new(reply::json(&results)))
-}
-
-/// Requests to the service and validates its response whether contains appropriate link(s).
-async fn request_service(
-    client: Client,
-    service: Arc<HomoService>,
-) -> Result<HomoServiceResponse, ReqwestError> {
-    use crate::validation::response::{
-        ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt,
-    };
-
-    let request = client.get(&service.service_url);
-    let start_at = Instant::now();
-    let response = request.send().await;
-
-    let duration = start_at.elapsed();
-    let remote_address = response.as_ref().map(|r| r.remote_addr()).ok().flatten();
-    let status = match response {
-        Ok(r) => match r.validate::<ResponseHeaderValidator>().await {
-            Some(s) => s,
-            None => r
-                .into_validate::<ResponseHtmlValidator>()
-                .await
-                .unwrap_or(HomoServiceStatus::Invalid),
-        },
-        Err(_) => HomoServiceStatus::Error,
-    };
-
-    Ok(HomoServiceResponse {
-        status,
-        remote_address,
-        duration,
-    })
 }
