@@ -62,6 +62,7 @@ pub struct HomoServiceResponse {
 }
 
 impl Provider {
+    /// Converts from entity text.
     pub fn from_entity(entity_sn: &str) -> Result<Provider, String> {
         let parts: Vec<_> = entity_sn.split('@').collect();
         match parts.len() {
@@ -74,6 +75,7 @@ impl Provider {
         }
     }
 
+    /// Converts to entity text.
     pub fn to_entity_string(&self) -> String {
         match self {
             Provider::Twitter(s) => s.to_owned(),
@@ -81,6 +83,17 @@ impl Provider {
                 screen_name,
                 domain,
             } => format!("@{}@{}", screen_name, domain),
+        }
+    }
+
+    /// Converts to cache key.
+    pub fn to_cache_key(&self) -> String {
+        match self {
+            Provider::Twitter(s) => format!("twitter:{}", s),
+            Provider::Mastodon {
+                screen_name,
+                domain,
+            } => format!("mastodon:@{}@{}", screen_name, domain),
         }
     }
 }

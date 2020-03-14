@@ -69,7 +69,7 @@ pub async fn fetch_avatar(
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
     let locked_redis = &mut *(redis.lock().await);
 
-    let key = provider.to_entity_string();
+    let key = provider.to_cache_key();
     match locked_redis.get(&key).await {
         Ok(Some(cached)) => return Ok(cached),
         Ok(None) => (),
@@ -95,7 +95,7 @@ pub async fn fetch_avatar(
         .await
     {
         Ok(()) => {
-            info!("Cached avatar URL of {}: {}", key, fetched);
+            info!("Cached `{}`: {}", key, fetched);
         }
         Err(e) => {
             warn!("Failed to access to Redis: {}", e);
