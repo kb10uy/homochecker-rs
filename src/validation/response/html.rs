@@ -26,7 +26,7 @@ impl IntoValidateResponse for ResponseHtmlValidator {
 
         // そこそこ重そうなので block_in_place する
         block_in_place(move || {
-            for meta in REGEX_HTML_ATTR.captures_iter(&body) {
+            for meta in REGEX_HTML_META.captures_iter(&body) {
                 let mut http_equiv = false;
                 let mut content = false;
                 for attr in REGEX_HTML_ATTR.captures_iter(&meta[1]) {
