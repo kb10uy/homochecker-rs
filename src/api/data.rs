@@ -1,7 +1,9 @@
 use crate::data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider};
+use std::error::Error;
 
+use idna::domain_to_unicode;
 use serde::{Deserialize, Serialize};
-use url::Position;
+use url::{Host, Position, Url};
 
 /// Response format for `GET /check/*`.
 #[derive(Debug, Deserialize)]
@@ -69,6 +71,35 @@ pub struct ListJsonResponse {
     pub secure: bool,
 }
 
+/// It can be converted into display URL.
+trait ToDisplayUrl {
+    type Error;
+    fn to_display_url(&self) -> Result<String, Self::Error>;
+}
+
+impl ToDisplayUrl for Url {
+    type Error = Box<dyn Error + Send + Sync>;
+
+    fn to_display_url(&self) -> Result<String, Box<dyn Error + Send + Sync>> {
+        let host = match self.host() {
+            Some(Host::Domain(d)) => {
+                let (decoded, result) = domain_to_unicode(d);
+                result.map_err(|_| "Failed to decode domain")?;
+                decoded
+            }
+            Some(Host::Ipv4(addr)) => addr.to_string(),
+            Some(Host::Ipv6(addr)) => addr.to_string(),
+            None => return Err("Domain not found".into()),
+        };
+        let path = match &self[Position::BeforePath..] {
+            "/" => "",
+            otherwise => otherwise,
+        };
+
+        Ok(format!("{}{}", host, path))
+    }
+}
+
 impl CheckEventResponseData {
     pub fn build(service: &HomoService, response: &HomoServiceResponse) -> CheckEventResponseData {
         // TODO: display_ur; を整形
@@ -82,7 +113,10 @@ impl CheckEventResponseData {
                 .into(),
                 icon: response.avatar_url.as_ref().map(|u| u.to_string()),
                 url: service.service_url.to_string(),
-                display_url: service.service_url[Position::BeforeHost..].to_owned(),
+                display_url: service
+                    .service_url
+                    .to_display_url()
+                    .unwrap_or_else(|_| "".into()),
                 secure: service.service_url.scheme() == "https",
             },
             status: match response.status {
@@ -108,7 +142,10 @@ impl ListJsonResponse {
             }
             .into(),
             url: service.service_url.to_string(),
-            display_url: service.service_url[Position::BeforeHost..].to_owned(),
+            display_url: service
+                .service_url
+                .to_display_url()
+                .unwrap_or_else(|_| "".into()),
             secure: service.service_url.scheme() == "https",
         }
     }

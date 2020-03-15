@@ -60,6 +60,9 @@ features = ["json"]
 [dependencies.url]
 version = "2.1"
 
+[dependencies.idna]
+version = "0.2"
+
 # Database
 
 [dependencies.tokio-postgres]

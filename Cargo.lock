@@ -482,6 +482,7 @@ dependencies = [
  "async-trait",
  "dotenv",
  "futures",
+ "idna",
  "lazy_static",
  "log 0.4.8",
  "pretty_env_logger",
