@@ -56,9 +56,6 @@ pub struct HomoServiceResponse {
 
     /// The response time.
     pub duration: Duration,
-
-    /// The avatar URL of the provider.
-    pub avatar_url: Option<Url>,
 }
 
 impl Provider {

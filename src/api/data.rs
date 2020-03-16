@@ -101,7 +101,7 @@ impl ToDisplayUrl for Url {
 }
 
 impl CheckEventResponseData {
-    pub fn build(service: &HomoService, response: &HomoServiceResponse) -> CheckEventResponseData {
+    pub fn build(service: &HomoService, avatar_url: Option<&Url>, response: &HomoServiceResponse) -> CheckEventResponseData {
         // TODO: display_ur; を整形
         CheckEventResponseData {
             homo: CheckEventResponseDataHomo {
@@ -111,7 +111,7 @@ impl CheckEventResponseData {
                     Provider::Mastodon { .. } => "mastodon",
                 }
                 .into(),
-                icon: response.avatar_url.as_ref().map(|u| u.to_string()),
+                icon: avatar_url.map(|u| u.to_string()),
                 url: service.service_url.to_string(),
                 display_url: service
                     .service_url

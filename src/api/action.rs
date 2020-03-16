@@ -15,7 +15,7 @@ use std::{convert::Infallible, iter::repeat, str::FromStr, sync::Arc};
 use futures::future::join_all;
 use log::{error, warn};
 use serde_json::Value as JsonValue;
-use tokio::{spawn, sync::mpsc::channel as tokio_channel};
+use tokio::{join, spawn, sync::mpsc::channel as tokio_channel};
 use url::Url;
 use warp::{
     filters::sse::ServerSentEvent,
@@ -139,18 +139,28 @@ async fn check_services_sse(
     });
 
     // response 送信
-    for (service, resolver) in service_sets {
+    for (service, mut resolver) in service_sets {
         let service = Arc::new(service);
         let sender = tx.clone();
         let deps = deps.clone();
         spawn(async move {
-            let response = request_service(deps, service.clone(), resolver).await;
+            // アバター URL とリダイレクト結果は並行で
+            let (avatar_url, response) =
+                join!(resolver.recv(), request_service(deps, service.clone()));
+            let avatar_url = match avatar_url {
+                Ok(au) => au,
+                Err(_) => None,
+            };
             let message = match response {
                 Ok(r) => (
                     sse::event("response"),
-                    sse::json(CheckEventResponseData::build(&service, &r))
-                        .into_a()
-                        .into_b(),
+                    sse::json(CheckEventResponseData::build(
+                        &service,
+                        avatar_url.as_ref(),
+                        &r,
+                    ))
+                    .into_a()
+                    .into_b(),
                 ),
                 Err(e) => (sse::event("error"), sse::data(e).into_b().into_b()),
             };
@@ -188,16 +198,27 @@ async fn check_services_json(
     }
 
     // 一斉送信
-    let result_futures = service_sets
-        .into_iter()
-        .zip(deps_chain)
-        .map(|((s, rx), deps)| async {
-            let service = Arc::new(s);
-            match request_service(deps, service.clone(), rx).await {
-                Ok(response) => Some(CheckEventResponseData::build(&service, &response)),
-                Err(_) => None,
-            }
-        });
+    let result_futures =
+        service_sets
+            .into_iter()
+            .zip(deps_chain)
+            .map(|((s, mut rx), deps)| async move {
+                let service = Arc::new(s);
+                let (avatar_url, response) =
+                    join!(rx.recv(), request_service(deps, service.clone()));
+                let avatar_url = match avatar_url {
+                    Ok(au) => au,
+                    Err(_) => None,
+                };
+                match response {
+                    Ok(response) => Some(CheckEventResponseData::build(
+                        &service,
+                        avatar_url.as_ref(),
+                        &response,
+                    )),
+                    Err(_) => None,
+                }
+            });
     let results: Vec<_> = join_all(result_futures)
         .await
         .into_iter()

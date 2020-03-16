@@ -14,10 +14,7 @@ use log::{info, warn};
 use regex::Regex;
 use reqwest::Response;
 use serde_json::Value as JsonValue;
-use tokio::{
-    join,
-    sync::broadcast::{channel, Receiver, Sender},
-};
+use tokio::sync::broadcast::{channel, Receiver, Sender};
 use url::Url;
 
 pub type AvatarResolverAttached = (
@@ -29,7 +26,6 @@ pub type AvatarResolverAttached = (
 pub async fn request_service(
     deps: impl Container + 'static,
     service: Arc<HomoService>,
-    mut avatar_url_receiver: Receiver<Option<Url>>,
 ) -> Result<HomoServiceResponse, Box<dyn Error + Send + Sync>> {
     let (response, duration) = deps
         .services()
@@ -38,15 +34,12 @@ pub async fn request_service(
         .await?;
 
     let remote_address = response.remote_addr();
-
-    // アバター URL と リダイレクト判定は並行
-    let (avatar_url, status) = join!(avatar_url_receiver.recv(), validate_status(response));
+    let status = validate_status(response).await;
 
     Ok(HomoServiceResponse {
         status,
         remote_address,
         duration,
-        avatar_url: avatar_url?,
     })
 }
 
