@@ -1,3 +1,4 @@
+mod adapter;
 mod api;
 mod data;
 mod repository;
