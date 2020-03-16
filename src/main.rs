@@ -1,10 +1,4 @@
-mod adapter;
-mod api;
-mod data;
-mod repository;
-mod service;
-mod validation;
-
+use homochecker_rs::{adapter::ProductionRepositories, api::route::homochecker};
 use std::{collections::HashMap, env::vars, net::SocketAddr, process::exit};
 
 use dotenv::dotenv;
@@ -67,8 +61,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             exit(1);
         });
 
-    let repositories = adapter::ProductionRepositories::new(pg_client, redis);
-    let routes = api::route::homochecker(repositories);
+    let repositories = ProductionRepositories::new(pg_client, redis);
+    let routes = homochecker(repositories);
 
     info!("Listening on {}", listen_address);
     warp::serve(routes).run(listen_address).await;
