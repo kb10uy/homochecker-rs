@@ -5,9 +5,9 @@ use super::data::{
     ListJsonResponse, ListQueryParameter, ListResponseFormat,
 };
 use crate::{
-    data::{HomoService, Provider},
+    action::{attach_avatar_resolver, fetch_avatar, request_service},
+    domain::{HomoService, Provider},
     repository::{Repositories, User, UserRepository},
-    service::homo::{attach_avatar_resolver, fetch_avatar, request_service},
     Container,
 };
 use std::{convert::Infallible, iter::repeat, str::FromStr, sync::Arc};

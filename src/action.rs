@@ -1,7 +1,7 @@
 //! Contains service logic related to `HomoService`.
 
 use crate::{
-    data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider, UnwrapOrWarnExt},
+    domain::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider, UnwrapOrWarnExt},
     repository::{AvatarRepository, Repositories},
     service::{AvatarService, HomoRequestService, Services},
     validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},

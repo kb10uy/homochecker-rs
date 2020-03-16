@@ -1,7 +1,8 @@
 //! Contains all functionalities for homochecker-rs.
 
+pub mod action;
 pub mod api;
-pub mod data;
+pub mod domain;
 pub mod repository;
 pub mod service;
 pub mod validation;

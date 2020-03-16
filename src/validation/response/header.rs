@@ -1,5 +1,5 @@
 use super::ValidateResponse;
-use crate::data::HomoServiceStatus;
+use crate::domain::HomoServiceStatus;
 
 use async_trait::async_trait;
 use reqwest::{Response, StatusCode};

@@ -6,7 +6,7 @@ mod html;
 pub use header::ResponseHeaderValidator;
 pub use html::ResponseHtmlValidator;
 
-use crate::data::HomoServiceStatus;
+use crate::domain::HomoServiceStatus;
 
 use async_trait::async_trait;
 use reqwest::Response;

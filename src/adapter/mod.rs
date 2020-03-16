@@ -85,7 +85,16 @@ impl Services {
         let avatar_client = Arc::new(ReqwestClient::new());
         let homo_client = Arc::new(
             ReqwestClient::builder()
-                .redirect(RedirectPolicy::custom(|attempt| attempt.follow()))
+                .redirect(RedirectPolicy::custom(|attempt| {
+                    // HTTP -> HTTPS のリダイレクトだけ追う
+                    let prev = &attempt.previous()[0];
+                    let next = attempt.url();
+                    if prev.domain() == next.domain() {
+                        attempt.follow()
+                    } else {
+                        attempt.stop()
+                    }
+                }))
                 .timeout(Duration::from_secs(5))
                 .build()
                 .unwrap(),

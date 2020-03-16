@@ -1,5 +1,5 @@
 use super::IntoValidateResponse;
-use crate::data::HomoServiceStatus;
+use crate::domain::HomoServiceStatus;
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
