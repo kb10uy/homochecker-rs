@@ -3,9 +3,10 @@ use crate::data::HomoServiceStatus;
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
+use log::warn;
 use regex::Regex;
 use reqwest::Response;
-use tokio::task::block_in_place;
+use tokio::task::spawn_blocking;
 
 lazy_static! {
     static ref REGEX_HTML_META: Regex = Regex::new(r#"<meta\s+([^>]+)\s*>"#).unwrap();
@@ -25,7 +26,7 @@ impl IntoValidateResponse for ResponseHtmlValidator {
         };
 
         // そこそこ重そうなので block_in_place する
-        block_in_place(move || {
+        let spawned = spawn_blocking(move || {
             for meta in REGEX_HTML_META.captures_iter(&body) {
                 let mut http_equiv = false;
                 let mut content = false;
@@ -51,5 +52,14 @@ impl IntoValidateResponse for ResponseHtmlValidator {
                 None
             }
         })
+        .await;
+
+        match spawned {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("Failed to join ResponseHtmlValidator: {}", e);
+                None
+            }
+        }
     }
 }

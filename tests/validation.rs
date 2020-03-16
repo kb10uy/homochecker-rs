@@ -2,7 +2,7 @@ mod support;
 
 use homochecker_rs::{
     data::HomoServiceStatus,
-    validation::response::{ResponseHeaderValidator, ValidateResponseExt},
+    validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},
 };
 
 use tokio::test as async_test;
@@ -17,14 +17,32 @@ const HTML_VALID_REDIRECT: &str = r#"
         </body>
     </html>
 "#;
+const HTML_VALID_CONTENT: &str = r#"
+    <html>
+        <head>
+            <title>@mpyw</title>
+        </head>
+        <body>
+            https://twitter.com/mpyw
+        </body>
+    </html>
+"#;
+const HTML_INVALID_CONTENT: &str = r#"
+    <html>
+        <head>
+            <title>@mpyw</title>
+        </head>
+        <body>
+        </body>
+    </html>
+"#;
 
 #[async_test]
 async fn checks_response_header_ok() {
-    let mocked = support::start_service_redirect(301, "https://twitter.com/mpyw");
+    let (_mock, url) = support::start_service_redirect(301, "https://twitter.com/mpyw");
 
     let client = support::create_client();
-    let response = client.get(&mocked.1).send().await.unwrap();
-    println!("{:?}", response);
+    let response = client.get(&url).send().await.unwrap();
     let status = response.validate::<ResponseHeaderValidator>().await;
 
     assert_case!(
@@ -36,10 +54,10 @@ async fn checks_response_header_ok() {
 
 #[async_test]
 async fn checks_response_header_invalid() {
-    let mocked = support::start_service_redirect(301, "https://twitter.com/kb10uy");
+    let (_mock, url) = support::start_service_redirect(301, "https://twitter.com/kb10uy");
 
     let client = support::create_client();
-    let response = client.get(&mocked.1).send().await.unwrap();
+    let response = client.get(&url).send().await.unwrap();
     let status = response.validate::<ResponseHeaderValidator>().await;
 
     assert_case!(
@@ -51,15 +69,60 @@ async fn checks_response_header_invalid() {
 
 #[async_test]
 async fn checks_response_header_unknown() {
-    let mocked = support::start_service_content("text/html", HTML_VALID_REDIRECT);
+    let (_mock, url) = support::start_service_content("text/html", HTML_VALID_REDIRECT);
 
     let client = support::create_client();
-    let response = client.get(&mocked.1).send().await.unwrap();
+    let response = client.get(&url).send().await.unwrap();
     let status = response.validate::<ResponseHeaderValidator>().await;
 
     assert_case!(
         status,
         None,
         "Validating response by header with HTML response"
+    );
+}
+
+#[async_test]
+async fn checks_response_content_equiv() {
+    let (_mock, url) = support::start_service_content("text/html", HTML_VALID_REDIRECT);
+
+    let client = support::create_client();
+    let response = client.get(&url).send().await.unwrap();
+    let status = response.into_validate::<ResponseHtmlValidator>().await;
+
+    assert_case!(
+        status,
+        Some(HomoServiceStatus::RedirectContent),
+        "Validating response by content with redirecting HTML response"
+    );
+}
+
+#[async_test]
+async fn checks_response_content_contains() {
+    let (_mock, url) = support::start_service_content("text/html", HTML_VALID_CONTENT);
+
+    let client = support::create_client();
+    let response = client.get(&url).send().await.unwrap();
+    let status = response.into_validate::<ResponseHtmlValidator>().await;
+
+    assert_case!(
+        status,
+        Some(HomoServiceStatus::LinkContent),
+        "Validating response by content with HTML response which have link"
+    );
+}
+
+#[async_test]
+async fn checks_response_content_err() {
+    let (_mock, url) = support::start_service_content("text/html", HTML_INVALID_CONTENT);
+
+    let client = support::create_client();
+    let response = client.get(&url).send().await.unwrap();
+    let status = response.into_validate::<ResponseHtmlValidator>().await;
+
+    assert_case!(
+        status,
+        None,
+        "Validating response by content with invalid HTML response"
     );
 }
