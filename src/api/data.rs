@@ -135,7 +135,7 @@ impl CheckEventResponseData {
                 .unwrap_or("ERROR")
                 .into(),
             ip: response
-                .map(|res| res.remote_address.map(|ip| ip.to_string()))
+                .map(|res| res.remote_address.map(|addr| addr.ip().to_string()))
                 .flatten(),
             duration: response
                 .map(|res| res.duration.as_secs_f64())
