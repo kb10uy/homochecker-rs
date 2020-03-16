@@ -1,28 +1,21 @@
 //! Contains application actions.
 
-use super::{
-    data::{
-        CheckEventInitializeData, CheckEventResponseData, CheckQueryParameter, CheckResponseFormat,
-        ListJsonResponse, ListQueryParameter, ListResponseFormat,
-    },
-    route::Connections,
+use super::data::{
+    CheckEventInitializeData, CheckEventResponseData, CheckQueryParameter, CheckResponseFormat,
+    ListJsonResponse, ListQueryParameter, ListResponseFormat,
 };
 use crate::{
     data::{HomoService, Provider},
-    repository::{User, UserRepository},
+    repository::{Repositories, UrlRepository, User, UserRepository},
     service::homo::{attach_avatar_resolver, fetch_avatar, request_service},
 };
 use std::{convert::Infallible, iter::repeat, str::FromStr, sync::Arc, time::Duration};
 
 use futures::future::join_all;
 use log::{error, warn};
-use redis::aio::Connection as RedisConnection;
 use reqwest::{redirect::Policy as RedirectPolicy, Client};
 use serde_json::Value as JsonValue;
-use tokio::{
-    spawn,
-    sync::{mpsc::channel as tokio_channel, Mutex},
-};
+use tokio::{spawn, sync::mpsc::channel as tokio_channel};
 use url::Url;
 use warp::{
     filters::sse::ServerSentEvent,
@@ -33,9 +26,9 @@ use warp::{
 /// Entrypoint of `GET /check`.
 pub async fn check_all(
     query: CheckQueryParameter,
-    conn: Connections,
+    repo: impl Repositories + 'static,
 ) -> Result<Box<dyn Reply>, Infallible> {
-    let users = match UserRepository::fetch_all(conn.postgres).await {
+    let users = match repo.user().fetch_all().await {
         Ok(users) => users,
         Err(e) => {
             let message = format!("Failed to fetch users: {}", e);
@@ -47,17 +40,17 @@ pub async fn check_all(
         }
     };
 
-    check_services(conn.redis, users.iter(), query).await
+    check_services(repo.url(), users.iter(), query).await
 }
 
 /// Entrypoint of `GET /check/:user`.
 pub async fn check_user(
     screen_name: String,
     query: CheckQueryParameter,
-    conn: Connections,
+    repo: impl Repositories + 'static,
 ) -> Result<Box<dyn Reply>, Infallible> {
     // TODO: screen_name のバリデーション
-    let users = match UserRepository::fetch_by_screen_name(conn.postgres, &screen_name).await {
+    let users = match repo.user().fetch_by_screen_name(&screen_name).await {
         Ok(users) => users,
         Err(e) => {
             let message = format!("Failed to fetch users: {}", e);
@@ -69,12 +62,12 @@ pub async fn check_user(
         }
     };
 
-    check_services(conn.redis, users.iter(), query).await
+    check_services(repo.url(), users.iter(), query).await
 }
 
 /// Separates the `GET /check` process by query parameter.
 async fn check_services(
-    redis: Arc<Mutex<RedisConnection>>,
+    url_repo: impl UrlRepository + 'static,
     users: impl IntoIterator<Item = &User>,
     query: CheckQueryParameter,
 ) -> Result<Box<dyn Reply>, Infallible> {
@@ -115,15 +108,15 @@ async fn check_services(
 
     match query.format {
         Some(CheckResponseFormat::ServerSentEvent) | None => {
-            check_services_sse(redis, client, services).await
+            check_services_sse(url_repo, client, services).await
         }
-        Some(CheckResponseFormat::Json) => check_services_json(redis, client, services).await,
+        Some(CheckResponseFormat::Json) => check_services_json(url_repo, client, services).await,
     }
 }
 
 /// Checks given services and make SSE response.
 async fn check_services_sse(
-    redis: Arc<Mutex<RedisConnection>>,
+    url_repo: impl UrlRepository + 'static,
     client: Client,
     services: Vec<HomoService>,
 ) -> Result<Box<dyn Reply>, Infallible> {
@@ -133,9 +126,9 @@ async fn check_services_sse(
     // avatar_url 解決
     for (provider, tx) in avatar_resolvers {
         let client = client.clone();
-        let redis = redis.clone();
+        let repo = url_repo.clone();
         spawn(async move {
-            let avatar = fetch_avatar(redis, client, Arc::new(provider)).await;
+            let avatar = fetch_avatar(repo.clone(), client, Arc::new(provider)).await;
             match tx.send(avatar) {
                 Ok(_) => (),
                 Err(e) => {
@@ -187,7 +180,7 @@ async fn check_services_sse(
 
 /// Checks given services and make SSE response.
 async fn check_services_json(
-    redis: Arc<Mutex<RedisConnection>>,
+    url_repo: impl UrlRepository + 'static,
     client: Client,
     services: Vec<HomoService>,
 ) -> Result<Box<dyn Reply>, Infallible> {
@@ -197,9 +190,9 @@ async fn check_services_json(
     // avatar_url 解決
     for (provider, tx) in avatar_resolvers {
         let client = client.clone();
-        let redis = redis.clone();
+        let repo = url_repo.clone();
         spawn(async move {
-            let avatar = fetch_avatar(redis, client, Arc::new(provider)).await;
+            let avatar = fetch_avatar(repo, client, Arc::new(provider)).await;
             match tx.send(avatar) {
                 Ok(_) => (),
                 Err(e) => {
@@ -232,9 +225,9 @@ async fn check_services_json(
 /// Entrypoint of `GET /list`.
 pub async fn list_all(
     query: ListQueryParameter,
-    conn: Connections,
+    repo: impl Repositories,
 ) -> Result<Box<dyn Reply>, Infallible> {
-    let users = match UserRepository::fetch_all(conn.postgres).await {
+    let users = match repo.user().fetch_all().await {
         Ok(users) => users,
         Err(e) => {
             let message = format!("Failed to fetch users: {}", e);
@@ -253,10 +246,10 @@ pub async fn list_all(
 pub async fn list_user(
     screen_name: String,
     query: ListQueryParameter,
-    conn: Connections,
+    repo: impl Repositories,
 ) -> Result<Box<dyn Reply>, Infallible> {
     // TODO: screen_name のバリデーション
-    let users = match UserRepository::fetch_by_screen_name(conn.postgres, &screen_name).await {
+    let users = match repo.user().fetch_by_screen_name(&screen_name).await {
         Ok(users) => users,
         Err(e) => {
             let message = format!("Failed to fetch users: {}", e);
@@ -319,9 +312,9 @@ async fn list_services(
 
 pub async fn redirect_badge(
     _query: JsonValue,
-    conn: Connections,
+    repo: impl Repositories,
 ) -> Result<Box<dyn Reply>, Infallible> {
-    let count = match UserRepository::count_all(conn.postgres).await {
+    let count = match repo.user().count_all().await {
         Ok(c) => c,
         Err(e) => {
             let message = format!("Failed to fetch users count: {}", e);

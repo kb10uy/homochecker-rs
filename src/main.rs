@@ -5,12 +5,12 @@ mod repository;
 mod service;
 mod validation;
 
-use std::{collections::HashMap, env::vars, net::SocketAddr, process::exit, sync::Arc};
+use std::{collections::HashMap, env::vars, net::SocketAddr, process::exit};
 
 use dotenv::dotenv;
 use log::{error, info};
 use redis::Client;
-use tokio::{spawn, sync::Mutex};
+use tokio::spawn;
 use tokio_postgres::NoTls;
 
 #[tokio::main]
@@ -36,7 +36,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             exit(1);
         }
     });
-    let postgres = Arc::new(pg_client);
 
     // Redis コネクション
     let redis_config = envs.get("REDIS_CONFIG").unwrap_or_else(|| {
@@ -47,15 +46,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         error!("Redis connection error: {}", e);
         exit(1);
     });
-    let redis = Arc::new(Mutex::new(
-        redis_client
-            .get_async_connection()
-            .await
-            .unwrap_or_else(|e| {
-                error!("Redis connection error: {}", e);
-                exit(1);
-            }),
-    ));
+    let redis = redis_client
+        .get_async_connection()
+        .await
+        .unwrap_or_else(|e| {
+            error!("Redis connection error: {}", e);
+            exit(1);
+        });
 
     // サーバー
     let listen_address: SocketAddr = envs
@@ -70,7 +67,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             exit(1);
         });
 
-    let routes = api::route::homochecker(api::route::Connections { postgres, redis });
+    let repositories = adapter::ProductionRepositories::new(pg_client, redis);
+    let routes = api::route::homochecker(repositories);
 
     info!("Listening on {}", listen_address);
     warp::serve(routes).run(listen_address).await;

@@ -1,21 +1,23 @@
 use crate::{
     data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider, UnwrapOrWarnExt},
+    repository::UrlRepository,
     validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},
 };
-use std::{collections::HashMap, error::Error, sync::Arc, time::Instant};
+use std::{
+    collections::HashMap,
+    error::Error,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use lazy_static::lazy_static;
 use log::{info, warn};
-use redis::{aio::Connection as RedisConnection, AsyncCommands};
 use regex::Regex;
 use reqwest::{Client, Error as ReqwestError, Response};
 use serde_json::Value as JsonValue;
 use tokio::{
     join,
-    sync::{
-        broadcast::{channel, Receiver, Sender},
-        Mutex,
-    },
+    sync::broadcast::{channel, Receiver, Sender},
 };
 use url::Url;
 
@@ -64,16 +66,12 @@ async fn validate_status(response: Result<Response, ReqwestError>) -> HomoServic
 }
 
 pub async fn fetch_avatar(
-    redis: Arc<Mutex<RedisConnection>>,
+    url_repo: impl UrlRepository,
     client: Client,
     provider: Arc<Provider>,
 ) -> Option<Url> {
-    let locked_redis = &mut *(redis.lock().await);
-
-    let key = provider.to_cache_key();
-    let cached: Result<Option<String>, _> = locked_redis.get(&key).await;
-    match cached {
-        Ok(Some(cached)) => return Url::parse(&cached).unwrap_or_warn("Invalid URL"),
+    match url_repo.get(&provider).await {
+        Ok(Some(url)) => return Some(url),
         Ok(None) => (),
         Err(e) => {
             warn!("Failed to access to Redis: {}", e);
@@ -88,16 +86,12 @@ pub async fn fetch_avatar(
         } => fetch_mastodon_avatar(client, &screen_name, &domain).await,
     }?;
 
-    match redis::cmd("SET")
-        .arg(&key)
-        .arg(fetched.to_string())
-        .arg("EX")
-        .arg(86400usize)
-        .query_async(locked_redis)
+    match url_repo
+        .set(&provider, &fetched.to_string(), Duration::from_secs(86400))
         .await
     {
         Ok(()) => {
-            info!("Cached `{}`: {}", key, fetched);
+            info!("Cached `{:?}`: {}", &provider, fetched);
         }
         Err(e) => {
             warn!("Failed to access to Redis: {}", e);

@@ -12,7 +12,10 @@ pub use self::user::{User, UserRepository};
 pub type RepositoryError = Box<dyn Error + Send + Sync>;
 
 /// Represents the container which includes repositories.
-pub trait Repositories {
+pub trait Repositories
+where
+    Self: Sized + Clone + Send + Sync,
+{
     /// The actual type for `UserRepository`.
     type User: UserRepository;
 
@@ -20,8 +23,8 @@ pub trait Repositories {
     type Url: UrlRepository;
 
     /// Returns user repository.
-    fn user() -> Self::User;
+    fn user(&self) -> Self::User;
 
     /// Returns URL repository.
-    fn url() -> Self::Url;
+    fn url(&self) -> Self::Url;
 }

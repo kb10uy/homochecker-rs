@@ -8,7 +8,14 @@ use async_trait::async_trait;
 use tokio_postgres::{Client, Error as PostgresError, Row};
 
 /// Adapter with PostgreSQL.
+#[derive(Clone)]
 pub struct PostgresUserAdapter(Arc<Client>);
+
+impl PostgresUserAdapter {
+    pub fn new(client: Arc<Client>) -> PostgresUserAdapter {
+        PostgresUserAdapter(client)
+    }
+}
 
 impl FromPostgresRow for User {
     fn from_row(row: &Row) -> Result<Self, PostgresError> {
@@ -24,7 +31,7 @@ impl FromPostgresRow for User {
 #[async_trait]
 impl UserRepository for PostgresUserAdapter {
     async fn count_all(&self) -> Result<usize, RepositoryError> {
-        let client = self.0;
+        let client = &self.0;
         let row = client
             .query_one(r#"SELECT COUNT(*)::INTEGER AS records FROM "users";"#, &[])
             .await?;
@@ -32,7 +39,7 @@ impl UserRepository for PostgresUserAdapter {
     }
 
     async fn fetch_all(&self) -> Result<Vec<User>, RepositoryError> {
-        let client = self.0;
+        let client = &self.0;
         let rows = client
             .query(r#"SELECT * FROM "users" ORDER BY "id";"#, &[])
             .await?;
@@ -47,7 +54,7 @@ impl UserRepository for PostgresUserAdapter {
         &self,
         screen_name: &str,
     ) -> Result<Vec<User>, RepositoryError> {
-        let client = self.0;
+        let client = &self.0;
         let screen_name = screen_name.borrow();
         let rows = client
             .query(
