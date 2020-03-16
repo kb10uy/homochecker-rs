@@ -1,4 +1,4 @@
-use crate::data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider};
+use crate::domain::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider};
 use std::error::Error;
 
 use idna::domain_to_unicode;

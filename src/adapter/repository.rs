@@ -1,7 +1,7 @@
 //! Contais adapters for `UrlRepository`.
 
 use homochecker_rs::{
-    data::Provider,
+    domain::Provider,
     repository::{
         AvatarRepository as AvatarRepositoryInterface, RepositoryError, User,
         UserRepository as UserRepositoryInterface,
