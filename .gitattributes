@@ -1,1 +1,1 @@
-/tests/fixture      linguist-vendored
+/tests/fixture/**/*     linguist-vendored
