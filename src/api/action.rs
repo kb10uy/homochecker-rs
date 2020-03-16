@@ -6,7 +6,7 @@ use super::data::{
 };
 use crate::{
     data::{HomoService, Provider},
-    repository::{Repositories, UrlRepository, User, UserRepository},
+    repository::{Repositories, AvatarRepository, User, UserRepository},
     service::homo::{attach_avatar_resolver, fetch_avatar, request_service},
 };
 use std::{convert::Infallible, iter::repeat, str::FromStr, sync::Arc, time::Duration};
@@ -40,7 +40,7 @@ pub async fn check_all(
         }
     };
 
-    check_services(repo.url(), users.iter(), query).await
+    check_services(repo.avatar(), users.iter(), query).await
 }
 
 /// Entrypoint of `GET /check/:user`.
@@ -62,12 +62,12 @@ pub async fn check_user(
         }
     };
 
-    check_services(repo.url(), users.iter(), query).await
+    check_services(repo.avatar(), users.iter(), query).await
 }
 
 /// Separates the `GET /check` process by query parameter.
 async fn check_services(
-    url_repo: impl UrlRepository + 'static,
+    url_repo: impl AvatarRepository + 'static,
     users: impl IntoIterator<Item = &User>,
     query: CheckQueryParameter,
 ) -> Result<Box<dyn Reply>, Infallible> {
@@ -116,7 +116,7 @@ async fn check_services(
 
 /// Checks given services and make SSE response.
 async fn check_services_sse(
-    url_repo: impl UrlRepository + 'static,
+    url_repo: impl AvatarRepository + 'static,
     client: Client,
     services: Vec<HomoService>,
 ) -> Result<Box<dyn Reply>, Infallible> {
@@ -180,7 +180,7 @@ async fn check_services_sse(
 
 /// Checks given services and make SSE response.
 async fn check_services_json(
-    url_repo: impl UrlRepository + 'static,
+    url_repo: impl AvatarRepository + 'static,
     client: Client,
     services: Vec<HomoService>,
 ) -> Result<Box<dyn Reply>, Infallible> {

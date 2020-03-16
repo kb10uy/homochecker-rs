@@ -1,11 +1,11 @@
 //! Contains data repository.
 
-mod url;
+mod avatar;
 mod user;
 
 use std::error::Error;
 
-pub use self::url::UrlRepository;
+pub use self::avatar::AvatarRepository;
 pub use self::user::{User, UserRepository};
 
 /// Various error types in repository operations.
@@ -20,11 +20,11 @@ where
     type User: UserRepository;
 
     /// The actual type for `UrlRepository`.
-    type Url: UrlRepository;
+    type Avatar: AvatarRepository;
 
     /// Returns user repository.
     fn user(&self) -> Self::User;
 
     /// Returns URL repository.
-    fn url(&self) -> Self::Url;
+    fn avatar(&self) -> Self::Avatar;
 }

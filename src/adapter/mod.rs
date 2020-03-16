@@ -1,9 +1,9 @@
 //! Contains repository adapters.
 
-mod url;
+mod avatar;
 mod user;
 
-use self::{url::RedisUrlAdapter, user::PostgresUserAdapter};
+use self::{avatar::RedisAvatarAdapter, user::PostgresUserAdapter};
 use crate::repository::Repositories;
 use std::sync::Arc;
 
@@ -36,13 +36,13 @@ impl ProductionRepositories {
 
 impl Repositories for ProductionRepositories {
     type User = PostgresUserAdapter;
-    type Url = RedisUrlAdapter;
+    type Avatar = RedisAvatarAdapter;
 
     fn user(&self) -> PostgresUserAdapter {
         PostgresUserAdapter::new(self.postgres.clone())
     }
 
-    fn url(&self) -> RedisUrlAdapter {
-        RedisUrlAdapter::new(self.redis.clone())
+    fn avatar(&self) -> RedisAvatarAdapter {
+        RedisAvatarAdapter::new(self.redis.clone())
     }
 }

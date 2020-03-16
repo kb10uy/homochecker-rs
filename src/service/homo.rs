@@ -2,7 +2,7 @@
 
 use crate::{
     data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider, UnwrapOrWarnExt},
-    repository::UrlRepository,
+    repository::AvatarRepository,
     validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},
 };
 use std::{
@@ -68,11 +68,11 @@ async fn validate_status(response: Result<Response, ReqwestError>) -> HomoServic
 }
 
 pub async fn fetch_avatar(
-    url_repo: impl UrlRepository,
+    avatar_repo: impl AvatarRepository,
     client: Client,
     provider: Arc<Provider>,
 ) -> Option<Url> {
-    match url_repo.get(&provider).await {
+    match avatar_repo.get(&provider).await {
         Ok(Some(url)) => return Some(url),
         Ok(None) => (),
         Err(e) => {
@@ -88,8 +88,8 @@ pub async fn fetch_avatar(
         } => fetch_mastodon_avatar(client, &screen_name, &domain).await,
     }?;
 
-    match url_repo
-        .set(&provider, &fetched.to_string(), Duration::from_secs(86400))
+    match avatar_repo
+        .save_cache(&provider, &fetched.to_string(), Duration::from_secs(86400))
         .await
     {
         Ok(()) => {
