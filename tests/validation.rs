@@ -1,7 +1,7 @@
 mod support;
 
 use homochecker_rs::{
-    data::HomoServiceStatus,
+    domain::HomoServiceStatus,
     validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},
 };
 

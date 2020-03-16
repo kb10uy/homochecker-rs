@@ -10,6 +10,7 @@ use url::Url;
 pub type RepositoryError = Box<dyn Error + Send + Sync>;
 
 /// Represents a record of `users`.
+#[derive(Debug, Clone, Default)]
 pub struct User {
     pub id: i32,
     pub screen_name: String,
@@ -41,8 +42,13 @@ pub trait UserRepository
 where
     Self: Sized + Clone + Send + Sync,
 {
+    /// Counts all records in `users`.
     async fn count_all(&self) -> Result<usize, RepositoryError>;
+
+    /// Fetches all records from `users`.
     async fn fetch_all(&self) -> Result<Vec<User>, RepositoryError>;
+
+    /// Fetches records with given screen_name.
     async fn fetch_by_screen_name(&self, screen_name: &str) -> Result<Vec<User>, RepositoryError>;
 }
 

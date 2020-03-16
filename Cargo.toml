@@ -85,3 +85,6 @@ version = "0.12"
 
 [dev-dependencies.mockito]
 version = "0.23"
+
+[dev-dependencies.mockall]
+version = "0.6"

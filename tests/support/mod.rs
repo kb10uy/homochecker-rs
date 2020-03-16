@@ -1,6 +1,8 @@
 // これがテスト結果に出力されるのを防ぐためのサブモジュール
 
-use std::{path::Path, time::Duration};
+mod container;
+
+use std::time::Duration;
 
 use mockito::{mock, server_url, Mock};
 use reqwest::{redirect::Policy as RedirectPolicy, Client};
@@ -24,7 +26,28 @@ macro_rules! assert_case {
     });
 }
 
+/// Returns specified fixture content.
+#[macro_export]
+macro_rules! fixture_content {
+    ($path:expr) => {{
+        use std::{
+            fs::File,
+            io::{prelude::*, BufReader},
+            path::PathBuf,
+        };
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push(format!("tests/fixture/{}", $path));
+
+        let mut content = vec![];
+        let mut file = BufReader::new(File::open(path).unwrap());
+        file.read_to_end(&mut content).unwrap();
+
+        content
+    }};
+}
+
 /// Creates a reqwest `Client` with limited redirect.
+#[allow(dead_code)]
 pub fn create_client() -> Client {
     Client::builder()
         .redirect(RedirectPolicy::custom(|attempt| {
@@ -43,6 +66,7 @@ pub fn create_client() -> Client {
 }
 
 /// Starts a testing service with redirect response.
+#[allow(dead_code)]
 pub fn start_service_redirect(status: usize, location: &str) -> (Mock, String) {
     let homo = mock("GET", "/")
         .with_status(status)
@@ -53,6 +77,7 @@ pub fn start_service_redirect(status: usize, location: &str) -> (Mock, String) {
 }
 
 /// Starts a testing service with body response.
+#[allow(dead_code)]
 pub fn start_service_content(content_type: &str, body: &str) -> (Mock, String) {
     let homo = mock("GET", "/")
         .with_status(200)
