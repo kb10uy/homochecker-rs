@@ -1,3 +1,5 @@
+//! Contains service logic related to `HomoService`.
+
 use crate::{
     data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider, UnwrapOrWarnExt},
     repository::UrlRepository,
