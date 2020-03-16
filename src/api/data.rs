@@ -101,7 +101,11 @@ impl ToDisplayUrl for Url {
 }
 
 impl CheckEventResponseData {
-    pub fn build(service: &HomoService, avatar_url: Option<&Url>, response: &HomoServiceResponse) -> CheckEventResponseData {
+    pub fn build(
+        service: &HomoService,
+        avatar_url: Option<&Url>,
+        response: Option<&HomoServiceResponse>,
+    ) -> CheckEventResponseData {
         // TODO: display_ur; を整形
         CheckEventResponseData {
             homo: CheckEventResponseDataHomo {
@@ -119,15 +123,23 @@ impl CheckEventResponseData {
                     .unwrap_or_else(|_| "".into()),
                 secure: service.service_url.scheme() == "https",
             },
-            status: match response.status {
-                HomoServiceStatus::RedirectResponse | HomoServiceStatus::RedirectContent => "OK",
-                HomoServiceStatus::LinkContent => "CONTAINS",
-                HomoServiceStatus::Invalid => "WRONG",
-                HomoServiceStatus::Error => "ERROR",
-            }
-            .into(),
-            ip: response.remote_address.map(|a| a.ip().to_string()),
-            duration: response.duration.as_secs_f64(),
+            status: response
+                .map(|s| match s.status {
+                    HomoServiceStatus::RedirectResponse | HomoServiceStatus::RedirectContent => {
+                        "OK"
+                    }
+                    HomoServiceStatus::LinkContent => "CONTAINS",
+                    HomoServiceStatus::Invalid => "WRONG",
+                    HomoServiceStatus::Error => "ERROR",
+                })
+                .unwrap_or("ERROR")
+                .into(),
+            ip: response
+                .map(|res| res.remote_address.map(|ip| ip.to_string()))
+                .flatten(),
+            duration: response
+                .map(|res| res.duration.as_secs_f64())
+                .unwrap_or(0.0),
         }
     }
 }

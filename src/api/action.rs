@@ -157,12 +157,22 @@ async fn check_services_sse(
                     sse::json(CheckEventResponseData::build(
                         &service,
                         avatar_url.as_ref(),
-                        &r,
+                        Some(&r),
                     ))
-                    .into_a()
                     .into_b(),
                 ),
-                Err(e) => (sse::event("error"), sse::data(e).into_b().into_b()),
+                // error を受け取る仕様は本家クライアントにもあるけど
+                // 仕様が違うのでエラーでも response event を返す
+                // Err(e) => (sse::event("error"), sse::data(e).into_b().into_b()),
+                Err(e) => (
+                    sse::event("response"),
+                    sse::json(CheckEventResponseData::build(
+                        &service,
+                        avatar_url.as_ref(),
+                        None,
+                    ))
+                    .into_b(),
+                ),
             };
             // rx が drop してたら何もやることはない
             match sender.clone().send(Ok(message)).await {
