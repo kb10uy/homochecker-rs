@@ -3,7 +3,7 @@ use homochecker_rs::{
     repository::{AvatarRepository, RepositoryError, User, UserRepository},
 };
 
-use std::{collections::HashMap, time::Duration, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use tokio::sync::Mutex;
@@ -14,10 +14,15 @@ pub struct MockUserRepository {
     source: Arc<Mutex<Vec<User>>>,
 }
 
+#[allow(dead_code)]
 impl MockUserRepository {
     pub async fn source(&self, source: Vec<User>) {
         let mut locked = self.source.lock().await;
         *locked = source;
+    }
+
+    pub fn as_source(&self) -> Arc<Mutex<Vec<User>>> {
+        self.source.clone()
     }
 }
 
@@ -49,10 +54,15 @@ pub struct MockAvatarRepository {
     source: Arc<Mutex<HashMap<Provider, Url>>>,
 }
 
+#[allow(dead_code)]
 impl MockAvatarRepository {
     pub async fn source(&self, source: HashMap<Provider, Url>) {
         let mut locked = self.source.lock().await;
         *locked = source;
+    }
+
+    pub fn as_source(&self) -> Arc<Mutex<HashMap<Provider, Url>>> {
+        self.source.clone()
     }
 }
 
@@ -68,7 +78,10 @@ impl AvatarRepository for MockAvatarRepository {
         url: &str,
         _age: Duration,
     ) -> Result<(), RepositoryError> {
-        self.source.lock().await.insert(provider.clone(), Url::parse(url)?);
+        self.source
+            .lock()
+            .await
+            .insert(provider.clone(), Url::parse(url)?);
         Ok(())
     }
 }

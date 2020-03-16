@@ -88,3 +88,7 @@ version = "0.23"
 
 [dev-dependencies.mockall]
 version = "0.6"
+
+[dev-dependencies.http]
+version = "0.2"
+

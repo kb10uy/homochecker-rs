@@ -1,6 +1,6 @@
 // これがテスト結果に出力されるのを防ぐためのサブモジュール
 
-mod container;
+pub mod container;
 
 use std::time::Duration;
 

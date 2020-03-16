@@ -7,10 +7,12 @@ use reqwest::Response;
 use tokio::sync::Mutex;
 use url::Url;
 
+type Ambox<T> = Arc<Mutex<Box<T>>>;
+
 #[derive(Clone)]
 pub struct MockAvatarService {
-    for_twitter: Arc<Mutex<Box<dyn Fn(&str) -> Response + Send + Sync>>>,
-    for_mastodon: Arc<Mutex<Box<dyn Fn(&str, &str) -> Response + Send + Sync>>>,
+    for_twitter: Ambox<dyn Fn(&str) -> Response + Send + Sync>,
+    for_mastodon: Ambox<dyn Fn(&str, &str) -> Response + Send + Sync>,
 }
 
 impl Default for MockAvatarService {
@@ -19,6 +21,7 @@ impl Default for MockAvatarService {
     }
 }
 
+#[allow(dead_code)]
 impl MockAvatarService {
     pub fn new() -> MockAvatarService {
         MockAvatarService {
@@ -60,7 +63,7 @@ impl AvatarService for MockAvatarService {
 
 #[derive(Clone)]
 pub struct MockHomoRequestService {
-    source: Arc<Mutex<Box<dyn Fn() -> (Response, Duration) + Send + Sync>>>,
+    source: Ambox<dyn Fn() -> (Response, Duration) + Send + Sync>,
 }
 
 impl Default for MockHomoRequestService {
@@ -69,6 +72,7 @@ impl Default for MockHomoRequestService {
     }
 }
 
+#[allow(dead_code)]
 impl MockHomoRequestService {
     pub fn new() -> MockHomoRequestService {
         MockHomoRequestService {
@@ -84,7 +88,7 @@ impl MockHomoRequestService {
 
 #[async_trait]
 impl HomoRequestService for MockHomoRequestService {
-    async fn request(&self, service_url: &Url) -> Result<(Response, Duration), ServiceError> {
+    async fn request(&self, _: &Url) -> Result<(Response, Duration), ServiceError> {
         let function = self.source.lock().await;
         Ok(function())
     }

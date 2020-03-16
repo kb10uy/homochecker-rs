@@ -1,0 +1,148 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/v1",
+    {
+      "manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
+      "toot": "http://joinmastodon.org/ns#",
+      "featured": {
+        "@id": "toot:featured",
+        "@type": "@id"
+      },
+      "alsoKnownAs": {
+        "@id": "as:alsoKnownAs",
+        "@type": "@id"
+      },
+      "movedTo": {
+        "@id": "as:movedTo",
+        "@type": "@id"
+      },
+      "schema": "http://schema.org#",
+      "PropertyValue": "schema:PropertyValue",
+      "value": "schema:value",
+      "IdentityProof": "toot:IdentityProof",
+      "discoverable": "toot:discoverable",
+      "Hashtag": "as:Hashtag",
+      "focalPoint": {
+        "@container": "@list",
+        "@id": "toot:focalPoint"
+      }
+    }
+  ],
+  "id": "https://mstdn.maud.io/users/kb10uy",
+  "type": "Person",
+  "following": "https://mstdn.maud.io/users/kb10uy/following",
+  "followers": "https://mstdn.maud.io/users/kb10uy/followers",
+  "inbox": "https://mstdn.maud.io/users/kb10uy/inbox",
+  "outbox": "https://mstdn.maud.io/users/kb10uy/outbox",
+  "featured": "https://mstdn.maud.io/users/kb10uy/collections/featured",
+  "preferredUsername": "kb10uy",
+  "name": "日下夏稀",
+  "summary": "<p>適当な発言を繰り出すのでご了承ください</p><p>[フレコ]<br />・オンゲキ 3067667719792<br />・CHUNITHM 3064637617722<br />・maimaiDX 3061667713762</p><p>[やってる]<br />・Einsamkeit (オレオレActivityPub)<br />・Askyharkraata (某AC音ゲーシミュ)<br />・ShortStoryServer (オタク文章投稿サイト)</p><p>[おすすめ]<br /><a href=\"https://mstdn.maud.io/tags/%E8%97%8D%E6%9C%88%E3%81%AA%E3%81%8F%E3%82%8B\" class=\"mention hashtag\" rel=\"tag\">#<span>藍月なくる</span></a> <a href=\"https://mstdn.maud.io/tags/%E9%99%BD%E5%90%91%E8%91%B5%E3%82%85%E3%81%8B\" class=\"mention hashtag\" rel=\"tag\">#<span>陽向葵ゅか</span></a> <a href=\"https://mstdn.maud.io/tags/%E4%B8%80%E4%B9%8B%E7%80%AC%E3%82%8A%E3%81%A8\" class=\"mention hashtag\" rel=\"tag\">#<span>一之瀬りと</span></a> <a href=\"https://mstdn.maud.io/tags/%E5%88%A9%E9%A6%99\" class=\"mention hashtag\" rel=\"tag\">#<span>利香</span></a> <a href=\"https://mstdn.maud.io/tags/%E6%88%8C%E7%A5%9E%E3%81%93%E3%82%8D%E3%81%AD\" class=\"mention hashtag\" rel=\"tag\">#<span>戌神ころね</span></a> <a href=\"https://mstdn.maud.io/tags/%E6%B9%8A%E3%81%82%E3%81%8F%E3%81%82\" class=\"mention hashtag\" rel=\"tag\">#<span>湊あくあ</span></a> <a href=\"https://mstdn.maud.io/tags/%E6%BD%A4%E7%BE%BD%E3%82%8B%E3%81%97%E3%81%82\" class=\"mention hashtag\" rel=\"tag\">#<span>潤羽るしあ</span></a> <a href=\"https://mstdn.maud.io/tags/%E5%AE%9D%E9%90%98%E3%83%9E%E3%83%AA%E3%83%B3\" class=\"mention hashtag\" rel=\"tag\">#<span>宝鐘マリン</span></a> <a href=\"https://mstdn.maud.io/tags/%E5%BE%A1%E4%BC%BD%E5%8E%9F%E6%B1%9F%E8%89%AF\" class=\"mention hashtag\" rel=\"tag\">#<span>御伽原江良</span></a> <a href=\"https://mstdn.maud.io/tags/%E6%9C%AC%E9%96%93%E3%81%B2%E3%81%BE%E3%82%8F%E3%82%8A\" class=\"mention hashtag\" rel=\"tag\">#<span>本間ひまわり</span></a> <a href=\"https://mstdn.maud.io/tags/%E5%90%8D%E5%8F%96%E3%81%95%E3%81%AA\" class=\"mention hashtag\" rel=\"tag\">#<span>名取さな</span></a></p>",
+  "url": "https://mstdn.maud.io/@kb10uy",
+  "manuallyApprovesFollowers": false,
+  "discoverable": true,
+  "publicKey": {
+    "id": "https://mstdn.maud.io/users/kb10uy#main-key",
+    "owner": "https://mstdn.maud.io/users/kb10uy",
+    "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoUPcIi+lzaXYSC2Q/YRm\n9di/B2bj1OTeZuHaxlSZXtFFILe9mwgymY8AEBkmJmlQCItr5Zz2N6GrjIVkPcMJ\n0rwbZTc1fGlfQBwMTfy0pr4R5E5i0gDUqIM8iv1Z7RVPreDt4x+DmylA7ZzkUWAb\n0mCP5WmKN+ybdwaingFGSLJ23lIzX1W0pDeLqYenmUXodx29xoL9N7afRyJxW8R1\nFCDStpvvCUqP0Ahj1BzssH5dbBNTVXdT1AFYEx8hev0FF1srF/GHK4MO11KSMl6/\n1o+gDYyH1Kd5VHhpuTxWz/mtfOLhDyV+lzFxqVYUOCmFPygX2UpxU/ePXjyZz9AC\nTwIDAQAB\n-----END PUBLIC KEY-----\n"
+  },
+  "tag": [
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E6%88%8C%E7%A5%9E%E3%81%93%E3%82%8D%E3%81%AD",
+      "name": "#戌神ころね"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E6%B9%8A%E3%81%82%E3%81%8F%E3%81%82",
+      "name": "#湊あくあ"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E8%97%8D%E6%9C%88%E3%81%AA%E3%81%8F%E3%82%8B",
+      "name": "#藍月なくる"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E6%BD%A4%E7%BE%BD%E3%82%8B%E3%81%97%E3%81%82",
+      "name": "#潤羽るしあ"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E5%AE%9D%E9%90%98%E3%83%9E%E3%83%AA%E3%83%B3",
+      "name": "#宝鐘マリン"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E5%BE%A1%E4%BC%BD%E5%8E%9F%E6%B1%9F%E8%89%AF",
+      "name": "#御伽原江良"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E6%9C%AC%E9%96%93%E3%81%B2%E3%81%BE%E3%82%8F%E3%82%8A",
+      "name": "#本間ひまわり"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E5%90%8D%E5%8F%96%E3%81%95%E3%81%AA",
+      "name": "#名取さな"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E4%B8%80%E4%B9%8B%E7%80%AC%E3%82%8A%E3%81%A8",
+      "name": "#一之瀬りと"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E5%88%A9%E9%A6%99",
+      "name": "#利香"
+    },
+    {
+      "type": "Hashtag",
+      "href": "https://mstdn.maud.io/explore/%E9%99%BD%E5%90%91%E8%91%B5%E3%82%85%E3%81%8B",
+      "name": "#陽向葵ゅか"
+    }
+  ],
+  "attachment": [
+    {
+      "type": "PropertyValue",
+      "name": "kb10uyについて",
+      "value": "<a href=\"https://kb10uy.org\" rel=\"me nofollow noopener noreferrer\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"\">kb10uy.org</span><span class=\"invisible\"></span></a>"
+    },
+    {
+      "type": "PropertyValue",
+      "name": "日下夏稀とは",
+      "value": "<a href=\"https://natsuki.pink\" rel=\"me nofollow noopener noreferrer\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"\">natsuki.pink</span><span class=\"invisible\"></span></a>"
+    },
+    {
+      "type": "PropertyValue",
+      "name": "デレマス",
+      "value": "高森藍子"
+    },
+    {
+      "type": "PropertyValue",
+      "name": "オンゲキ",
+      "value": "結城莉玖/15.80"
+    },
+    {
+      "type": "IdentityProof",
+      "name": "kb10uy",
+      "signatureAlgorithm": "keybase",
+      "signatureValue": "944075cfe08e32d3134a753eef947ab384915d971c5568aa1c30a034a58375b10f"
+    }
+  ],
+  "endpoints": {
+    "sharedInbox": "https://mstdn.maud.io/inbox"
+  },
+  "icon": {
+    "type": "Image",
+    "mediaType": "image/png",
+    "url": "https://media-mstdn.maud.io/accounts/avatars/000/000/333/original/667d051b2d1e912c.png"
+  },
+  "image": {
+    "type": "Image",
+    "mediaType": "image/jpeg",
+    "url": "https://media-mstdn.maud.io/accounts/headers/000/000/333/original/659ffa531d84512c.jpg"
+  }
+}

@@ -553,6 +553,7 @@ dependencies = [
  "async-trait",
  "dotenv",
  "futures",
+ "http",
  "idna",
  "lazy_static",
  "log 0.4.8",
