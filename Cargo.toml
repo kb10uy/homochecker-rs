@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Yū Kobayashi <kb10uy@kb10uy.org>"]
 edition = "2018"
 
+[[bin]]
+name = "homochecker-rs"
+path = "src/main.rs"
+
 [lib]
 path = "src/lib.rs"
 
