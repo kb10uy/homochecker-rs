@@ -1,6 +1,6 @@
 // これがテスト結果に出力されるのを防ぐためのサブモジュール
 
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
 use mockito::{mock, server_url, Mock};
 use reqwest::{redirect::Policy as RedirectPolicy, Client};
