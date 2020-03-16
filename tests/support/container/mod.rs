@@ -1,7 +1,10 @@
 mod repository;
 mod service;
 
-use self::service::{MockAvatarService, MockHomoRequestService};
+use self::{
+    repository::{MockAvatarRepository, MockUserRepository},
+    service::{MockAvatarService, MockHomoRequestService},
+};
 use homochecker_rs::{repository::Repositories, service::Services, Container};
 
 #[derive(Default, Clone)]

@@ -1,9 +1,13 @@
-use homochecker_rs::repository::{AvatarRepository, RepositoryError, User, UserRepository};
+use homochecker_rs::{
+    domain::Provider,
+    repository::{AvatarRepository, RepositoryError, User, UserRepository},
+};
 
-use std::sync::Arc;
+use std::{collections::HashMap, time::Duration, sync::Arc};
 
 use async_trait::async_trait;
 use tokio::sync::Mutex;
+use url::Url;
 
 #[derive(Clone, Default)]
 pub struct MockUserRepository {
@@ -37,5 +41,34 @@ impl UserRepository for MockUserRepository {
             .cloned()
             .collect();
         Ok(result)
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct MockAvatarRepository {
+    source: Arc<Mutex<HashMap<Provider, Url>>>,
+}
+
+impl MockAvatarRepository {
+    pub async fn source(&self, source: HashMap<Provider, Url>) {
+        let mut locked = self.source.lock().await;
+        *locked = source;
+    }
+}
+
+#[async_trait]
+impl AvatarRepository for MockAvatarRepository {
+    async fn get(&self, provider: &Provider) -> Result<Option<Url>, RepositoryError> {
+        Ok(self.source.lock().await.get(provider).map(<_>::to_owned))
+    }
+
+    async fn save_cache(
+        &self,
+        provider: &Provider,
+        url: &str,
+        _age: Duration,
+    ) -> Result<(), RepositoryError> {
+        self.source.lock().await.insert(provider.clone(), Url::parse(url)?);
+        Ok(())
     }
 }
