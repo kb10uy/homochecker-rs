@@ -164,7 +164,7 @@ async fn check_services_sse(
                 // error を受け取る仕様は本家クライアントにもあるけど
                 // 仕様が違うのでエラーでも response event を返す
                 // Err(e) => (sse::event("error"), sse::data(e).into_b().into_b()),
-                Err(e) => (
+                Err(_) => (
                     sse::event("response"),
                     sse::json(CheckEventResponseData::build(
                         &service,
@@ -224,7 +224,7 @@ async fn check_services_json(
                     Ok(response) => Some(CheckEventResponseData::build(
                         &service,
                         avatar_url.as_ref(),
-                        &response,
+                        Some(&response),
                     )),
                     Err(_) => None,
                 }
