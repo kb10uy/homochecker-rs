@@ -2,20 +2,17 @@
 
 use crate::{
     data::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider, UnwrapOrWarnExt},
-    repository::AvatarRepository,
+    repository::{AvatarRepository, Repositories},
+    service::{AvatarService, HomoRequestService, Services},
     validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},
+    Container,
 };
-use std::{
-    collections::HashMap,
-    error::Error,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{collections::HashMap, error::Error, sync::Arc, time::Duration};
 
 use lazy_static::lazy_static;
 use log::{info, warn};
 use regex::Regex;
-use reqwest::{Client, Error as ReqwestError, Response};
+use reqwest::Response;
 use serde_json::Value as JsonValue;
 use tokio::{
     join,
@@ -30,16 +27,17 @@ pub type AvatarResolverAttached = (
 
 /// Requests to the service and validates its response whether contains appropriate link(s).
 pub async fn request_service(
-    client: Client,
+    deps: impl Container + 'static,
     service: Arc<HomoService>,
     mut avatar_url_receiver: Receiver<Option<Url>>,
 ) -> Result<HomoServiceResponse, Box<dyn Error + Send + Sync>> {
-    let request = client.get(&service.service_url[..]);
-    let start_at = Instant::now();
-    let response = request.send().await;
+    let (response, duration) = deps
+        .services()
+        .homo_request()
+        .request(&service.service_url)
+        .await?;
 
-    let duration = start_at.elapsed();
-    let remote_address = response.as_ref().map(|r| r.remote_addr()).ok().flatten();
+    let remote_address = response.remote_addr();
 
     // アバター URL と リダイレクト判定は並行
     let (avatar_url, status) = join!(avatar_url_receiver.recv(), validate_status(response));
@@ -53,11 +51,7 @@ pub async fn request_service(
 }
 
 /// Validates the response from the service.
-async fn validate_status(response: Result<Response, ReqwestError>) -> HomoServiceStatus {
-    let response = match response {
-        Ok(r) => r,
-        Err(_) => return HomoServiceStatus::Error,
-    };
+async fn validate_status(response: Response) -> HomoServiceStatus {
     match response.validate::<ResponseHeaderValidator>().await {
         Some(s) => s,
         None => response
@@ -67,11 +61,16 @@ async fn validate_status(response: Result<Response, ReqwestError>) -> HomoServic
     }
 }
 
-pub async fn fetch_avatar(
-    avatar_repo: impl AvatarRepository,
-    client: Client,
-    provider: Arc<Provider>,
-) -> Option<Url> {
+pub async fn fetch_avatar(deps: impl Container + 'static, provider: Arc<Provider>) -> Option<Url> {
+    lazy_static! {
+        static ref REGEX_USER_AVATAR: Regex =
+            Regex::new(r#"src=["'](https://[ap]bs\.twimg\.com/[^"']+)"#).unwrap();
+    }
+
+    let avatar_repo = deps.repositories().avatar();
+    let avatar_srv = deps.services().avatar();
+
+    // キャッシュ判定
     match avatar_repo.get(&provider).await {
         Ok(Some(url)) => return Some(url),
         Ok(None) => (),
@@ -80,14 +79,50 @@ pub async fn fetch_avatar(
         }
     }
 
+    // 取得
     let fetched = match &*provider {
-        Provider::Twitter(sn) => fetch_twitter_avatar(client, &sn).await,
+        Provider::Twitter(sn) => {
+            let response = match avatar_srv.fetch_twitter(sn).await {
+                Ok(res) => res,
+                Err(e) => {
+                    warn!("Failed to fetch twitter intent: {}", e);
+                    return None;
+                }
+            };
+            let html = response.text().await.unwrap_or_warn("Body error")?;
+            if let Some(capture) = REGEX_USER_AVATAR.captures(&html) {
+                Url::parse(&capture[1]).unwrap_or_warn("Invalid URL")
+            } else {
+                warn!("Avatar image not found in Twitter intent page: {}", sn);
+                None
+            }
+        }
         Provider::Mastodon {
             screen_name,
             domain,
-        } => fetch_mastodon_avatar(client, &screen_name, &domain).await,
+        } => {
+            let response = match avatar_srv.fetch_mastodon(screen_name, domain).await {
+                Ok(res) => res,
+                Err(e) => {
+                    warn!("Failed to fetch twitter intent: {}", e);
+                    return None;
+                }
+            };
+            let user = response
+                .json::<JsonValue>()
+                .await
+                .unwrap_or_warn("Invalid Mastodon user JSON")?;
+            if let JsonValue::String(s) = &user["icon"]["url"] {
+                Url::parse(&s).unwrap_or_warn("Invalid URL")
+            } else {
+                let message = format!("user.icon.url was not string: {}", &user["icon"]["url"]);
+                warn!("{}", message);
+                None
+            }
+        }
     }?;
 
+    // キャッシュ
     match avatar_repo
         .save_cache(&provider, &fetched.to_string(), Duration::from_secs(86400))
         .await
@@ -122,57 +157,4 @@ pub fn attach_avatar_resolver(
     }
 
     (attached, txmap)
-}
-
-/// Fetches specific Mastodon user avatar URL from Web.
-async fn fetch_twitter_avatar(client: Client, screen_name: &str) -> Option<Url> {
-    lazy_static! {
-        static ref REGEX_USER_AVATAR: Regex =
-            Regex::new(r#"src=["'](https://[ap]bs\.twimg\.com/[^"']+)"#).unwrap();
-    }
-
-    let request = client.get(&format!(
-        "https://twitter.com/intent/user?screen_name={}",
-        screen_name
-    ));
-    let html = request
-        .send()
-        .await
-        .unwrap_or_warn("Failed to fetch Twitter intent")?
-        .text()
-        .await
-        .unwrap_or_warn("Body error")?;
-
-    if let Some(capture) = REGEX_USER_AVATAR.captures(&html) {
-        Url::parse(&capture[1]).unwrap_or_warn("Invalid URL")
-    } else {
-        warn!(
-            "Avatar image not found in Twitter intent page: {}",
-            screen_name
-        );
-        None
-    }
-}
-
-/// Fetches specific Mastodon user avatar URL from Web.
-async fn fetch_mastodon_avatar(client: Client, screen_name: &str, domain: &str) -> Option<Url> {
-    let request = client
-        .get(&format!("https://{}/users/{}.json", domain, screen_name))
-        .header("Accept", "application/json");
-
-    let user = request
-        .send()
-        .await
-        .unwrap_or_warn("Failed to fetch Mastodon user JSON")?
-        .json::<JsonValue>()
-        .await
-        .unwrap_or_warn("Invalid Mastodon user JSON")?;
-
-    if let JsonValue::String(s) = &user["icon"]["url"] {
-        Url::parse(&s).unwrap_or_warn("Invalid URL")
-    } else {
-        let message = format!("user.icon.url was not string: {}", &user["icon"]["url"]);
-        warn!("{}", message);
-        None
-    }
 }

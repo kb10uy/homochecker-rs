@@ -3,11 +3,13 @@
 use crate::{
     data::Provider,
     repository::{AvatarRepository, RepositoryError},
+    service::{AvatarService, ServiceError},
 };
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use redis::{aio::Connection, AsyncCommands};
+use reqwest::{Client, Response};
 use tokio::sync::Mutex;
 use url::Url;
 
@@ -49,5 +51,40 @@ impl AvatarRepository for RedisAvatarAdapter {
             .await?;
 
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct WebAvatarService(Arc<Client>);
+
+impl WebAvatarService {
+    pub fn new(client: Arc<Client>) -> WebAvatarService {
+        WebAvatarService(client)
+    }
+}
+
+#[async_trait]
+impl AvatarService for WebAvatarService {
+    async fn fetch_twitter(&self, screen_name: &str) -> Result<Response, ServiceError> {
+        let client = &self.0;
+        let request = client.get(&format!(
+            "https://twitter.com/intent/user?screen_name={}",
+            screen_name
+        ));
+
+        Ok(request.send().await?)
+    }
+
+    async fn fetch_mastodon(
+        &self,
+        screen_name: &str,
+        domain: &str,
+    ) -> Result<Response, ServiceError> {
+        let client = &self.0;
+        let request = client
+            .get(&format!("https://{}/users/{}.json", domain, screen_name))
+            .header("Accept", "application/json");
+
+        Ok(request.send().await?)
     }
 }

@@ -6,14 +6,14 @@ use super::data::{
 };
 use crate::{
     data::{HomoService, Provider},
-    repository::{Repositories, AvatarRepository, User, UserRepository},
+    repository::{Repositories, User, UserRepository},
     service::homo::{attach_avatar_resolver, fetch_avatar, request_service},
+    Container,
 };
-use std::{convert::Infallible, iter::repeat, str::FromStr, sync::Arc, time::Duration};
+use std::{convert::Infallible, iter::repeat, str::FromStr, sync::Arc};
 
 use futures::future::join_all;
 use log::{error, warn};
-use reqwest::{redirect::Policy as RedirectPolicy, Client};
 use serde_json::Value as JsonValue;
 use tokio::{spawn, sync::mpsc::channel as tokio_channel};
 use url::Url;
@@ -26,9 +26,9 @@ use warp::{
 /// Entrypoint of `GET /check`.
 pub async fn check_all(
     query: CheckQueryParameter,
-    repo: impl Repositories + 'static,
+    deps: impl Container + 'static,
 ) -> Result<Box<dyn Reply>, Infallible> {
-    let users = match repo.user().fetch_all().await {
+    let users = match deps.repositories().user().fetch_all().await {
         Ok(users) => users,
         Err(e) => {
             let message = format!("Failed to fetch users: {}", e);
@@ -40,17 +40,22 @@ pub async fn check_all(
         }
     };
 
-    check_services(repo.avatar(), users.iter(), query).await
+    check_services(deps, users.iter(), query).await
 }
 
 /// Entrypoint of `GET /check/:user`.
 pub async fn check_user(
     screen_name: String,
     query: CheckQueryParameter,
-    repo: impl Repositories + 'static,
+    deps: impl Container + 'static,
 ) -> Result<Box<dyn Reply>, Infallible> {
     // TODO: screen_name のバリデーション
-    let users = match repo.user().fetch_by_screen_name(&screen_name).await {
+    let users = match deps
+        .repositories()
+        .user()
+        .fetch_by_screen_name(&screen_name)
+        .await
+    {
         Ok(users) => users,
         Err(e) => {
             let message = format!("Failed to fetch users: {}", e);
@@ -62,12 +67,12 @@ pub async fn check_user(
         }
     };
 
-    check_services(repo.avatar(), users.iter(), query).await
+    check_services(deps, users.iter(), query).await
 }
 
 /// Separates the `GET /check` process by query parameter.
 async fn check_services(
-    url_repo: impl AvatarRepository + 'static,
+    deps: impl Container + 'static,
     users: impl IntoIterator<Item = &User>,
     query: CheckQueryParameter,
 ) -> Result<Box<dyn Reply>, Infallible> {
@@ -91,33 +96,17 @@ async fn check_services(
         )));
     }
 
-    let client = Client::builder()
-        .redirect(RedirectPolicy::custom(|attempt| {
-            // HTTPS ドメインへのリダイレクトだけ飛ぶ
-            let prev = &attempt.previous()[0];
-            let next = attempt.url();
-            if prev.host_str() == next.host_str() {
-                attempt.follow()
-            } else {
-                attempt.stop()
-            }
-        }))
-        .timeout(Duration::from_secs(5))
-        .build()
-        .unwrap();
-
     match query.format {
         Some(CheckResponseFormat::ServerSentEvent) | None => {
-            check_services_sse(url_repo, client, services).await
+            check_services_sse(deps, services).await
         }
-        Some(CheckResponseFormat::Json) => check_services_json(url_repo, client, services).await,
+        Some(CheckResponseFormat::Json) => check_services_json(deps, services).await,
     }
 }
 
 /// Checks given services and make SSE response.
 async fn check_services_sse(
-    url_repo: impl AvatarRepository + 'static,
-    client: Client,
+    deps: impl Container + 'static,
     services: Vec<HomoService>,
 ) -> Result<Box<dyn Reply>, Infallible> {
     let (tx, rx) = tokio_channel(64);
@@ -125,10 +114,9 @@ async fn check_services_sse(
 
     // avatar_url 解決
     for (provider, tx) in avatar_resolvers {
-        let client = client.clone();
-        let repo = url_repo.clone();
+        let deps = deps.clone();
         spawn(async move {
-            let avatar = fetch_avatar(repo.clone(), client, Arc::new(provider)).await;
+            let avatar = fetch_avatar(deps, Arc::new(provider)).await;
             match tx.send(avatar) {
                 Ok(_) => (),
                 Err(e) => {
@@ -153,15 +141,14 @@ async fn check_services_sse(
     // response 送信
     for (service, resolver) in service_sets {
         let service = Arc::new(service);
-        let cl = client.clone();
-        let srv = service.clone();
         let sender = tx.clone();
+        let deps = deps.clone();
         spawn(async move {
-            let response = request_service(cl.clone(), srv.clone(), resolver).await;
+            let response = request_service(deps, service.clone(), resolver).await;
             let message = match response {
                 Ok(r) => (
                     sse::event("response"),
-                    sse::json(CheckEventResponseData::build(&srv, &r))
+                    sse::json(CheckEventResponseData::build(&service, &r))
                         .into_a()
                         .into_b(),
                 ),
@@ -180,19 +167,17 @@ async fn check_services_sse(
 
 /// Checks given services and make SSE response.
 async fn check_services_json(
-    url_repo: impl AvatarRepository + 'static,
-    client: Client,
+    deps: impl Container + 'static,
     services: Vec<HomoService>,
 ) -> Result<Box<dyn Reply>, Infallible> {
-    let clients = repeat(client.clone());
+    let deps_chain = repeat(deps.clone());
     let (service_sets, avatar_resolvers) = attach_avatar_resolver(services);
 
     // avatar_url 解決
     for (provider, tx) in avatar_resolvers {
-        let client = client.clone();
-        let repo = url_repo.clone();
+        let deps = deps.clone();
         spawn(async move {
-            let avatar = fetch_avatar(repo, client, Arc::new(provider)).await;
+            let avatar = fetch_avatar(deps, Arc::new(provider)).await;
             match tx.send(avatar) {
                 Ok(_) => (),
                 Err(e) => {
@@ -205,10 +190,10 @@ async fn check_services_json(
     // 一斉送信
     let result_futures = service_sets
         .into_iter()
-        .zip(clients)
-        .map(|((s, rx), c)| async {
+        .zip(deps_chain)
+        .map(|((s, rx), deps)| async {
             let service = Arc::new(s);
-            match request_service(c, service.clone(), rx).await {
+            match request_service(deps, service.clone(), rx).await {
                 Ok(response) => Some(CheckEventResponseData::build(&service, &response)),
                 Err(_) => None,
             }
@@ -225,9 +210,9 @@ async fn check_services_json(
 /// Entrypoint of `GET /list`.
 pub async fn list_all(
     query: ListQueryParameter,
-    repo: impl Repositories,
+    deps: impl Container,
 ) -> Result<Box<dyn Reply>, Infallible> {
-    let users = match repo.user().fetch_all().await {
+    let users = match deps.repositories().user().fetch_all().await {
         Ok(users) => users,
         Err(e) => {
             let message = format!("Failed to fetch users: {}", e);
@@ -246,10 +231,15 @@ pub async fn list_all(
 pub async fn list_user(
     screen_name: String,
     query: ListQueryParameter,
-    repo: impl Repositories,
+    deps: impl Container + 'static,
 ) -> Result<Box<dyn Reply>, Infallible> {
     // TODO: screen_name のバリデーション
-    let users = match repo.user().fetch_by_screen_name(&screen_name).await {
+    let users = match deps
+        .repositories()
+        .user()
+        .fetch_by_screen_name(&screen_name)
+        .await
+    {
         Ok(users) => users,
         Err(e) => {
             let message = format!("Failed to fetch users: {}", e);
@@ -312,9 +302,9 @@ async fn list_services(
 
 pub async fn redirect_badge(
     _query: JsonValue,
-    repo: impl Repositories,
+    deps: impl Container + 'static,
 ) -> Result<Box<dyn Reply>, Infallible> {
-    let count = match repo.user().count_all().await {
+    let count = match deps.repositories().user().count_all().await {
         Ok(c) => c,
         Err(e) => {
             let message = format!("Failed to fetch users count: {}", e);
