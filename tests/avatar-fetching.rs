@@ -12,17 +12,14 @@ use url::Url;
 
 #[async_test]
 async fn fetches_twitter_avatar() {
-    let container = {
-        let c = MockContainer::default();
-        c.services()
-            .avatar()
-            .for_twitter(|_| {
-                let intent_response = fixture_content!("twitter-intent.html");
-                ResponseBuilder::new().body(intent_response).unwrap().into()
-            })
-            .await;
-        c
-    };
+    let fixture = fixture_content!("twitter-intent.html");
+    let container = MockContainer::default();
+    let for_twitter = container.services().avatar().for_twitter();
+    let cache = container.repositories().avatar().source();
+    *(for_twitter.lock().await) = Box::new(move |_| {
+        let fixture = fixture.clone();
+        ResponseBuilder::new().body(fixture).unwrap().into()
+    });
 
     let provider = Arc::new(Provider::Twitter("kb10uy".into()));
     let result = fetch_avatar(container.clone(), provider.clone()).await;
@@ -36,7 +33,6 @@ async fn fetches_twitter_avatar() {
         "Extracts avatar URL from Twitter user intent HTML"
     );
 
-    let cache = container.repositories().avatar().as_source();
     let locked = cache.lock().await;
     assert_case!(
         locked.get(&*provider),
@@ -47,17 +43,14 @@ async fn fetches_twitter_avatar() {
 
 #[async_test]
 async fn fetches_mastodon_avatar() {
-    let container = {
-        let c = MockContainer::default();
-        c.services()
-            .avatar()
-            .for_mastodon(|_, _| {
-                let user_response = fixture_content!("mastodon-user.json");
-                ResponseBuilder::new().body(user_response).unwrap().into()
-            })
-            .await;
-        c
-    };
+    let fixture = fixture_content!("mastodon-user.json");
+    let container = MockContainer::default();
+    let for_mastodon = container.services().avatar().for_mastodon();
+    let cache = container.repositories().avatar().source();
+    *(for_mastodon.lock().await) = Box::new(move |_, _| {
+        let fixture = fixture.clone();
+        ResponseBuilder::new().body(fixture).unwrap().into()
+    });
 
     let provider = Arc::new(Provider::Mastodon {
         screen_name: "kb10uy".into(),
@@ -75,7 +68,6 @@ async fn fetches_mastodon_avatar() {
         "Extracts avatar URL from Twitter user intent HTML"
     );
 
-    let cache = container.repositories().avatar().as_source();
     let locked = cache.lock().await;
     assert_case!(
         locked.get(&*provider),

@@ -83,9 +83,6 @@ version = "0.15"
 [dev-dependencies.ansi_term]
 version = "0.12"
 
-[dev-dependencies.mockito]
-version = "0.23"
-
 [dev-dependencies.http]
 version = "0.2"
 

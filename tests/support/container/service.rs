@@ -1,13 +1,11 @@
+use super::Ambox;
 use homochecker_rs::service::{AvatarService, HomoRequestService, ServiceError};
-
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use reqwest::Response;
 use tokio::sync::Mutex;
 use url::Url;
-
-type Ambox<T> = Arc<Mutex<Box<T>>>;
 
 #[derive(Clone)]
 pub struct MockAvatarService {
@@ -30,17 +28,12 @@ impl MockAvatarService {
         }
     }
 
-    pub async fn for_twitter(&self, func: impl Fn(&str) -> Response + Send + Sync + 'static) {
-        let mut locked = self.for_twitter.lock().await;
-        *locked = Box::new(func);
+    pub fn for_twitter(&self) -> Ambox<dyn Fn(&str) -> Response + Send + Sync> {
+        self.for_twitter.clone()
     }
 
-    pub async fn for_mastodon(
-        &self,
-        func: impl Fn(&str, &str) -> Response + Send + Sync + 'static,
-    ) {
-        let mut locked = self.for_mastodon.lock().await;
-        *locked = Box::new(func);
+    pub fn for_mastodon(&self) -> Ambox<dyn Fn(&str, &str) -> Response + Send + Sync> {
+        self.for_mastodon.clone()
     }
 }
 
@@ -80,9 +73,8 @@ impl MockHomoRequestService {
         }
     }
 
-    pub async fn source(&self, func: impl Fn() -> (Response, Duration) + Send + Sync + 'static) {
-        let mut locked = self.source.lock().await;
-        *locked = Box::new(func);
+    pub fn source(&self) -> Ambox<dyn Fn() -> (Response, Duration) + Send + Sync> {
+        self.source.clone()
     }
 }
 

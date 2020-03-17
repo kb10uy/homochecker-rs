@@ -6,6 +6,12 @@ use self::{
     service::{MockAvatarService, MockHomoRequestService},
 };
 use homochecker_rs::{repository::Repositories, service::Services, Container};
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
+type Amx<T> = Arc<Mutex<T>>;
+type Ambox<T> = Arc<Mutex<Box<T>>>;
 
 #[derive(Default, Clone)]
 pub struct MockContainer {
