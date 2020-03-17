@@ -13,6 +13,7 @@ impl ValidateResponse for ResponseHeaderValidator {
         match response.status() {
             StatusCode::MOVED_PERMANENTLY
             | StatusCode::FOUND
+            | StatusCode::SEE_OTHER
             | StatusCode::TEMPORARY_REDIRECT
             | StatusCode::PERMANENT_REDIRECT => {
                 let location = match response.headers().get("location") {
