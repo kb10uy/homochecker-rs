@@ -33,7 +33,7 @@ impl IntoValidateResponse for ResponseHtmlValidator {
                 for attr in REGEX_HTML_ATTR.captures_iter(&meta[1]) {
                     match &attr[1] {
                         "http-equiv" => {
-                            http_equiv |= &attr[2] == "refresh";
+                            http_equiv |= &attr[2].to_lowercase() == "refresh";
                         }
                         "content" => {
                             content |= REGEX_TARGET_URL.is_match(&attr[2]);
