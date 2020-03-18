@@ -25,12 +25,12 @@ pub type AvatarResolverAttached = (
 /// Requests to the service and validates its response whether contains appropriate link(s).
 pub async fn request_service(
     deps: impl Container + 'static,
-    service: Arc<HomoService>,
+    service_url: Url,
 ) -> Result<HomoServiceResponse, Box<dyn Error + Send + Sync>> {
     let (response, duration) = deps
         .services()
         .homo_request()
-        .request(&service.service_url)
+        .request(&service_url)
         .await?;
 
     let remote_address = response.remote_addr();

@@ -146,7 +146,7 @@ async fn check_services_sse(
         spawn(async move {
             // アバター URL とリダイレクト結果は並行で
             let (avatar_url, response) =
-                join!(resolver.recv(), request_service(deps, service.clone()));
+                join!(resolver.recv(), request_service(deps, service.service_url.clone()));
             let avatar_url = match avatar_url {
                 Ok(au) => au,
                 Err(_) => None,
@@ -215,7 +215,7 @@ async fn check_services_json(
             .map(|((s, mut rx), deps)| async move {
                 let service = Arc::new(s);
                 let (avatar_url, response) =
-                    join!(rx.recv(), request_service(deps, service.clone()));
+                    join!(rx.recv(), request_service(deps, service.service_url.clone()));
                 let avatar_url = match avatar_url {
                     Ok(au) => au,
                     Err(_) => None,
