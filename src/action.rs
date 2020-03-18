@@ -1,7 +1,10 @@
 //! Contains service logic related to `HomoService`.
 
 use crate::{
-    domain::{HomoService, HomoServiceResponse, HomoServiceStatus, Provider, UnwrapOrWarnExt},
+    domain::{
+        HomoService, HomoServiceResponse, HomoServiceStatus, HttpResponse, Provider,
+        UnwrapOrWarnExt,
+    },
     repository::{AvatarRepository, Repositories},
     service::{AvatarService, HomoRequestService, Services},
     validation::response::{ResponseHeaderValidator, ResponseHtmlValidator, ValidateResponseExt},
@@ -12,7 +15,6 @@ use std::{collections::HashMap, error::Error, sync::Arc, time::Duration};
 use lazy_static::lazy_static;
 use log::{info, warn};
 use regex::Regex;
-use reqwest::Response;
 use serde_json::Value as JsonValue;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 use url::Url;
@@ -27,13 +29,9 @@ pub async fn request_service(
     deps: impl Container + 'static,
     service_url: Url,
 ) -> Result<HomoServiceResponse, Box<dyn Error + Send + Sync>> {
-    let (response, duration) = deps
-        .services()
-        .homo_request()
-        .request(&service_url)
-        .await?;
+    let (response, duration) = deps.services().homo_request().request(&service_url).await?;
 
-    let remote_address = response.remote_addr();
+    let remote_address = response.remote_address;
     let status = validate_status(response).await;
 
     Ok(HomoServiceResponse {
@@ -44,11 +42,11 @@ pub async fn request_service(
 }
 
 /// Validates the response from the service.
-async fn validate_status(response: Response) -> HomoServiceStatus {
+async fn validate_status(response: HttpResponse) -> HomoServiceStatus {
     match response.validate::<ResponseHeaderValidator>().await {
         Some(s) => s,
         None => response
-            .into_validate::<ResponseHtmlValidator>()
+            .validate::<ResponseHtmlValidator>()
             .await
             .unwrap_or(HomoServiceStatus::Invalid),
     }
@@ -82,7 +80,7 @@ pub async fn fetch_avatar(deps: impl Container + 'static, provider: Arc<Provider
                     return None;
                 }
             };
-            let html = response.text().await.unwrap_or_warn("Body error")?;
+            let html = response.body;
             if let Some(capture) = REGEX_USER_AVATAR.captures(&html) {
                 Url::parse(&capture[1]).unwrap_or_warn("Invalid URL")
             } else {
@@ -101,9 +99,7 @@ pub async fn fetch_avatar(deps: impl Container + 'static, provider: Arc<Provider
                     return None;
                 }
             };
-            let user = response
-                .json::<JsonValue>()
-                .await
+            let user = serde_json::from_str::<JsonValue>(&response.body)
                 .unwrap_or_warn("Invalid Mastodon user JSON")?;
             if let JsonValue::String(s) = &user["icon"]["url"] {
                 Url::parse(&s).unwrap_or_warn("Invalid URL")

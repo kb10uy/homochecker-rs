@@ -1,9 +1,10 @@
 //! Contains abstract domain model.
 
 use crate::repository::User;
-use std::{error::Error, net::SocketAddr, time::Duration};
+use std::{collections::HashMap, error::Error, net::SocketAddr, time::Duration};
 
 use log::warn;
+use http::StatusCode;
 use url::Url;
 
 /// Represents a person who provides the homo service.
@@ -51,11 +52,27 @@ pub struct HomoServiceResponse {
     /// Status.
     pub status: HomoServiceStatus,
 
-    /// The remote IP address.
+    /// The remote socket address.
     pub remote_address: Option<SocketAddr>,
 
     /// The response time.
     pub duration: Duration,
+}
+
+/// Represents an abstract HTTP response.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpResponse {
+    /// The remote socket address.
+    pub remote_address: Option<SocketAddr>,
+
+    /// Response status code.
+    pub status: StatusCode,
+
+    /// Response headers.
+    pub headers: HashMap<String, String>,
+
+    /// Response body.
+    pub body: String,
 }
 
 impl Provider {

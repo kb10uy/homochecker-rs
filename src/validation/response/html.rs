@@ -1,12 +1,9 @@
-use super::IntoValidateResponse;
-use crate::domain::HomoServiceStatus;
+use super::ValidateResponse;
+use crate::domain::{HomoServiceStatus, HttpResponse};
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
-use log::warn;
 use regex::Regex;
-use reqwest::Response;
-use tokio::task::spawn_blocking;
 
 lazy_static! {
     static ref REGEX_HTML_META: Regex = Regex::new(r#"<meta\s+([^>]+)\s*>"#).unwrap();
@@ -18,48 +15,31 @@ lazy_static! {
 pub enum ResponseHtmlValidator {}
 
 #[async_trait]
-impl IntoValidateResponse for ResponseHtmlValidator {
-    async fn into_validate(response: Response) -> Option<HomoServiceStatus> {
-        let body = match response.text().await {
-            Ok(s) => s,
-            Err(_) => return None,
-        };
-
-        // そこそこ重そうなので block_in_place する
-        let spawned = spawn_blocking(move || {
-            for meta in REGEX_HTML_META.captures_iter(&body) {
-                let mut http_equiv = false;
-                let mut content = false;
-                for attr in REGEX_HTML_ATTR.captures_iter(&meta[1]) {
-                    match &attr[1] {
-                        "http-equiv" => {
-                            http_equiv |= &attr[2].to_lowercase() == "refresh";
-                        }
-                        "content" => {
-                            content |= REGEX_TARGET_URL.is_match(&attr[2]);
-                        }
-                        _ => continue,
+impl ValidateResponse for ResponseHtmlValidator {
+    async fn validate(response: &HttpResponse) -> Option<HomoServiceStatus> {
+        for meta in REGEX_HTML_META.captures_iter(&response.body) {
+            let mut http_equiv = false;
+            let mut content = false;
+            for attr in REGEX_HTML_ATTR.captures_iter(&meta[1]) {
+                match &attr[1] {
+                    "http-equiv" => {
+                        http_equiv |= &attr[2].to_lowercase() == "refresh";
                     }
+                    "content" => {
+                        content |= REGEX_TARGET_URL.is_match(&attr[2]);
+                    }
+                    _ => continue,
                 }
-                if http_equiv && content {
-                    return Some(HomoServiceStatus::RedirectContent);
-                }
             }
+            if http_equiv && content {
+                return Some(HomoServiceStatus::RedirectContent);
+            }
+        }
 
-            if REGEX_TARGET_URL.is_match(&body) {
-                Some(HomoServiceStatus::LinkContent)
-            } else {
-                None
-            }
-        })
-        .await;
-
-        match spawned {
-            Ok(s) => s,
-            Err(e) => {
-                warn!("Failed to join ResponseHtmlValidator: {}", e);
-                None
-            }
+        if REGEX_TARGET_URL.is_match(&response.body) {
+            Some(HomoServiceStatus::LinkContent)
+        } else {
+            None
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::{error::Error, time::Duration};
+use crate::domain::HttpResponse;
 
 use async_trait::async_trait;
-use reqwest::Response;
 use url::Url;
 
 /// Various error types in service operations.
@@ -31,12 +31,12 @@ pub trait AvatarService
 where
     Self: Sized + Send + Sync + Clone,
 {
-    async fn fetch_twitter(&self, screen_name: &str) -> Result<Response, ServiceError>;
+    async fn fetch_twitter(&self, screen_name: &str) -> Result<HttpResponse, ServiceError>;
     async fn fetch_mastodon(
         &self,
         screen_name: &str,
         domain: &str,
-    ) -> Result<Response, ServiceError>;
+    ) -> Result<HttpResponse, ServiceError>;
 }
 
 /// Provides an interface to operations to check `HomoService`.
@@ -45,5 +45,5 @@ pub trait HomoRequestService
 where
     Self: Sized + Send + Sync + Clone,
 {
-    async fn request(&self, service_url: &Url) -> Result<(Response, Duration), ServiceError>;
+    async fn request(&self, service_url: &Url) -> Result<(HttpResponse, Duration), ServiceError>;
 }

@@ -3,28 +3,18 @@
 mod header;
 mod html;
 
-pub use header::ResponseHeaderValidator;
-pub use html::ResponseHtmlValidator;
+pub use self::{header::ResponseHeaderValidator, html::ResponseHtmlValidator};
 
-use crate::domain::HomoServiceStatus;
+use crate::domain::{HomoServiceStatus, HttpResponse};
 
 use async_trait::async_trait;
-use reqwest::Response;
 
-/// Indicates that it validates `reqwest::Response`.
+/// Indicates that it validates `HttpResponse`.
 #[async_trait]
 pub trait ValidateResponse {
     /// Validates the response.
     /// Returns `None` if any valid URL was found.
-    async fn validate(response: &Response) -> Option<HomoServiceStatus>;
-}
-
-/// Indicates that it validates **moved** `reqwest::Response`.
-#[async_trait]
-pub trait IntoValidateResponse {
-    /// Validates the response.
-    /// Returns `None` if any valid URL was found.
-    async fn into_validate(response: Response) -> Option<HomoServiceStatus>;
+    async fn validate(response: &HttpResponse) -> Option<HomoServiceStatus>;
 }
 
 #[async_trait]
@@ -36,17 +26,11 @@ where
     /// Validates the response.
     /// Returns `None` if any valid URL was found.
     async fn validate<V: ValidateResponse>(&self) -> Option<HomoServiceStatus>;
-
-    async fn into_validate<IV: IntoValidateResponse>(self) -> Option<HomoServiceStatus>;
 }
 
 #[async_trait]
-impl ValidateResponseExt for Response {
+impl ValidateResponseExt for HttpResponse {
     async fn validate<V: ValidateResponse>(&self) -> Option<HomoServiceStatus> {
         V::validate(self).await
-    }
-
-    async fn into_validate<IV: IntoValidateResponse>(self) -> Option<HomoServiceStatus> {
-        IV::into_validate(self).await
     }
 }

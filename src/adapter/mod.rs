@@ -14,8 +14,11 @@ use homochecker_rs::{
 use std::{sync::Arc, time::Duration};
 
 use redis::aio::Connection as RedisConnection;
-use reqwest::{redirect::Policy as RedirectPolicy, Client as ReqwestClient};
-use tokio::sync::Mutex;
+use reqwest::{
+    blocking::Client as ReqwestBlockingClient, redirect::Policy as RedirectPolicy,
+    Client as ReqwestClient,
+};
+use tokio::sync::{Mutex, Semaphore};
 use tokio_postgres::Client as PostgresClient;
 
 #[derive(Clone)]
@@ -77,14 +80,15 @@ impl RepositoriesInterface for Repositories {
 #[derive(Clone)]
 pub struct Services {
     avatar_client: Arc<ReqwestClient>,
-    homo_client: Arc<ReqwestClient>,
+    homo_client: Arc<ReqwestBlockingClient>,
+    homophore: Arc<Semaphore>,
 }
 
 impl Services {
     pub fn new() -> Services {
         let avatar_client = Arc::new(ReqwestClient::new());
         let homo_client = Arc::new(
-            ReqwestClient::builder()
+            ReqwestBlockingClient::builder()
                 .redirect(RedirectPolicy::custom(|attempt| {
                     // HTTP -> HTTPS のリダイレクトだけ追う
                     let prev = &attempt.previous()[0];
@@ -99,10 +103,12 @@ impl Services {
                 .build()
                 .unwrap(),
         );
+        let homophore = Arc::new(Semaphore::new(1));
 
         Services {
             avatar_client,
             homo_client,
+            homophore,
         }
     }
 }
@@ -116,6 +122,6 @@ impl ServicesInterface for Services {
     }
 
     fn homo_request(&self) -> HomoRequestService {
-        HomoRequestService::new(self.homo_client.clone())
+        HomoRequestService::new(self.homo_client.clone(), self.homophore.clone())
     }
 }

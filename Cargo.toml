@@ -57,18 +57,21 @@ version = "0.3"
 
 # Web
 
-[dependencies.warp]
+[dependencies.http]
 version = "0.2"
-
-[dependencies.reqwest]
-version = "0.10"
-features = ["json"]
 
 [dependencies.url]
 version = "2.1"
 
 [dependencies.idna]
 version = "0.2"
+
+[dependencies.warp]
+version = "0.2"
+
+[dependencies.reqwest]
+version = "0.10"
+features = ["json", "blocking"]
 
 # Database
 
@@ -82,7 +85,4 @@ version = "0.15"
 
 [dev-dependencies.ansi_term]
 version = "0.12"
-
-[dev-dependencies.http]
-version = "0.2"
 
