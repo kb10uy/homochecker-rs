@@ -14,7 +14,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use reqwest::{blocking::Client as BlockingClient, Client};
+use reqwest::Client;
 use tokio::sync::Semaphore;
 use url::Url;
 
@@ -78,10 +78,10 @@ impl AvatarServiceInterface for AvatarService {
 }
 
 #[derive(Clone)]
-pub struct HomoRequestService(Arc<BlockingClient>, Arc<Semaphore>);
+pub struct HomoRequestService(Arc<Client>, Arc<Semaphore>);
 
 impl HomoRequestService {
-    pub fn new(client: Arc<BlockingClient>, sema: Arc<Semaphore>) -> HomoRequestService {
+    pub fn new(client: Arc<Client>, sema: Arc<Semaphore>) -> HomoRequestService {
         HomoRequestService(client, sema)
     }
 }
@@ -92,7 +92,7 @@ impl HomoRequestServiceInterface for HomoRequestService {
         let client = &self.0;
         let _permit = self.1.acquire().await;
         let start = Instant::now();
-        let response = client.get(&service_url[..]).send()?;
+        let response = client.get(&service_url[..]).send().await?;
         let duration = start.elapsed();
 
         let status = response.status();
@@ -106,7 +106,7 @@ impl HomoRequestServiceInterface for HomoRequestService {
                 status,
                 remote_address,
                 headers,
-                body: response.text()?,
+                body: response.text().await?,
             },
             duration,
         ))
