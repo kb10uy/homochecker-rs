@@ -2,8 +2,11 @@
 
 pub mod container;
 
+use homochecker_rs::domain::{HomoService, Provider};
+
 use http::{response::Builder as ResponseBuilder, StatusCode};
 use reqwest::Response;
+use url::Url;
 
 /// Pretty-prints assertion case.
 #[macro_export]
@@ -62,4 +65,12 @@ pub fn make_content_response(content_type: &str, body: &str) -> Response {
         .body(body.to_owned())
         .unwrap()
         .into()
+}
+
+#[allow(dead_code)]
+pub fn make_homo_service(provider: Provider) -> HomoService {
+    HomoService {
+        provider,
+        service_url: Url::parse("https://example.com").unwrap(),
+    }
 }
