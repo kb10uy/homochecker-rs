@@ -78,7 +78,6 @@ impl RepositoriesInterface for Repositories {
 pub struct Services {
     avatar_client: Arc<ReqwestClient>,
     homo_client: Arc<ReqwestClient>,
-    homophore: Arc<Semaphore>,
 }
 
 impl Services {
@@ -100,12 +99,10 @@ impl Services {
                 .build()
                 .unwrap(),
         );
-        let homophore = Arc::new(Semaphore::new(1));
 
         Services {
             avatar_client,
             homo_client,
-            homophore,
         }
     }
 }
@@ -119,6 +116,6 @@ impl ServicesInterface for Services {
     }
 
     fn homo_request(&self) -> HomoRequestService {
-        HomoRequestService::new(self.homo_client.clone(), self.homophore.clone())
+        HomoRequestService::new(self.homo_client.clone())
     }
 }
