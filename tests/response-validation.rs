@@ -153,7 +153,7 @@ async fn checks_response_header_unknown() {
 #[async_test]
 async fn checks_response_content_equiv() {
     let status = make_content_response("text/html", HTML_VALID_REDIRECT)
-        .into_validate::<ResponseHtmlValidator>()
+        .validate::<ResponseHtmlValidator>()
         .await;
     assert_case!(
         status,
@@ -165,7 +165,7 @@ async fn checks_response_content_equiv() {
 #[async_test]
 async fn checks_response_content_contains() {
     let status = make_content_response("text/html", HTML_VALID_CONTENT)
-        .into_validate::<ResponseHtmlValidator>()
+        .validate::<ResponseHtmlValidator>()
         .await;
     assert_case!(
         status,
@@ -177,7 +177,7 @@ async fn checks_response_content_contains() {
 #[async_test]
 async fn checks_response_content_err() {
     let status = make_content_response("text/html", HTML_INVALID_CONTENT)
-        .into_validate::<ResponseHtmlValidator>()
+        .validate::<ResponseHtmlValidator>()
         .await;
     assert_case!(
         status,

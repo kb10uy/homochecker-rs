@@ -1,16 +1,18 @@
 use super::Ambox;
-use homochecker_rs::service::{AvatarService, HomoRequestService, ServiceError};
+use homochecker_rs::{
+    domain::HttpResponse,
+    service::{AvatarService, HomoRequestService, ServiceError},
+};
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use reqwest::Response;
 use tokio::sync::Mutex;
 use url::Url;
 
 #[derive(Clone)]
 pub struct MockAvatarService {
-    for_twitter: Ambox<dyn Fn(&str) -> Response + Send + Sync>,
-    for_mastodon: Ambox<dyn Fn(&str, &str) -> Response + Send + Sync>,
+    for_twitter: Ambox<dyn Fn(&str) -> HttpResponse + Send + Sync>,
+    for_mastodon: Ambox<dyn Fn(&str, &str) -> HttpResponse + Send + Sync>,
 }
 
 impl Default for MockAvatarService {
@@ -28,18 +30,18 @@ impl MockAvatarService {
         }
     }
 
-    pub fn for_twitter(&self) -> Ambox<dyn Fn(&str) -> Response + Send + Sync> {
+    pub fn for_twitter(&self) -> Ambox<dyn Fn(&str) -> HttpResponse + Send + Sync> {
         self.for_twitter.clone()
     }
 
-    pub fn for_mastodon(&self) -> Ambox<dyn Fn(&str, &str) -> Response + Send + Sync> {
+    pub fn for_mastodon(&self) -> Ambox<dyn Fn(&str, &str) -> HttpResponse + Send + Sync> {
         self.for_mastodon.clone()
     }
 }
 
 #[async_trait]
 impl AvatarService for MockAvatarService {
-    async fn fetch_twitter(&self, screen_name: &str) -> Result<Response, ServiceError> {
+    async fn fetch_twitter(&self, screen_name: &str) -> Result<HttpResponse, ServiceError> {
         let function = self.for_twitter.lock().await;
         Ok(function(screen_name))
     }
@@ -48,7 +50,7 @@ impl AvatarService for MockAvatarService {
         &self,
         screen_name: &str,
         domain: &str,
-    ) -> Result<Response, ServiceError> {
+    ) -> Result<HttpResponse, ServiceError> {
         let function = self.for_mastodon.lock().await;
         Ok(function(screen_name, domain))
     }
@@ -56,7 +58,7 @@ impl AvatarService for MockAvatarService {
 
 #[derive(Clone)]
 pub struct MockHomoRequestService {
-    source: Ambox<dyn Fn() -> (Response, Duration) + Send + Sync>,
+    source: Ambox<dyn Fn() -> (HttpResponse, Duration) + Send + Sync>,
 }
 
 impl Default for MockHomoRequestService {
@@ -73,14 +75,14 @@ impl MockHomoRequestService {
         }
     }
 
-    pub fn source(&self) -> Ambox<dyn Fn() -> (Response, Duration) + Send + Sync> {
+    pub fn source(&self) -> Ambox<dyn Fn() -> (HttpResponse, Duration) + Send + Sync> {
         self.source.clone()
     }
 }
 
 #[async_trait]
 impl HomoRequestService for MockHomoRequestService {
-    async fn request(&self, _: &Url) -> Result<(Response, Duration), ServiceError> {
+    async fn request(&self, _: &Url) -> Result<(HttpResponse, Duration), ServiceError> {
         let function = self.source.lock().await;
         Ok(function())
     }

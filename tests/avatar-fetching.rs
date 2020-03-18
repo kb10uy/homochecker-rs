@@ -1,25 +1,21 @@
 mod support;
 
-use self::support::container::MockContainer;
+use self::support::{container::MockContainer, make_content_response};
 use homochecker_rs::{
     action::fetch_avatar, domain::Provider, repository::Repositories, service::Services, Container,
 };
 use std::sync::Arc;
 
-use http::response::Builder as ResponseBuilder;
 use tokio::test as async_test;
 use url::Url;
 
 #[async_test]
 async fn fetches_twitter_avatar() {
-    let fixture = fixture_content!("twitter-intent.html");
+    let fixture = String::from_utf8(fixture_content!("twitter-intent.html")).unwrap();
     let container = MockContainer::default();
     let for_twitter = container.services().avatar().for_twitter();
     let cache = container.repositories().avatar().source();
-    *(for_twitter.lock().await) = Box::new(move |_| {
-        let fixture = fixture.clone();
-        ResponseBuilder::new().body(fixture).unwrap().into()
-    });
+    *(for_twitter.lock().await) = Box::new(move |_| make_content_response("text/html", &fixture));
 
     let provider = Arc::new(Provider::Twitter("kb10uy".into()));
     let result = fetch_avatar(container.clone(), provider.clone()).await;
@@ -43,14 +39,12 @@ async fn fetches_twitter_avatar() {
 
 #[async_test]
 async fn fetches_mastodon_avatar() {
-    let fixture = fixture_content!("mastodon-user.json");
+    let fixture = String::from_utf8(fixture_content!("mastodon-user.json")).unwrap();
     let container = MockContainer::default();
     let for_mastodon = container.services().avatar().for_mastodon();
     let cache = container.repositories().avatar().source();
-    *(for_mastodon.lock().await) = Box::new(move |_, _| {
-        let fixture = fixture.clone();
-        ResponseBuilder::new().body(fixture).unwrap().into()
-    });
+    *(for_mastodon.lock().await) =
+        Box::new(move |_, _| make_content_response("application/json", &fixture));
 
     let provider = Arc::new(Provider::Mastodon {
         screen_name: "kb10uy".into(),

@@ -2,10 +2,10 @@
 
 pub mod container;
 
-use homochecker_rs::domain::{HomoService, Provider};
+use homochecker_rs::domain::{HomoService, HttpResponse, Provider};
+use std::collections::HashMap;
 
-use http::{response::Builder as ResponseBuilder, StatusCode};
-use reqwest::Response;
+use http::StatusCode;
 use url::Url;
 
 /// Pretty-prints assertion case.
@@ -48,23 +48,31 @@ macro_rules! fixture_content {
 }
 
 #[allow(dead_code)]
-pub fn make_redirect_response(status: StatusCode, location: &str) -> Response {
-    ResponseBuilder::new()
-        .status(status)
-        .header("Location", location)
-        .body("")
-        .unwrap()
-        .into()
+pub fn make_redirect_response(status: StatusCode, location: &str) -> HttpResponse {
+    HttpResponse {
+        status,
+        headers: {
+            let mut h = HashMap::new();
+            h.insert("location".into(), location.into());
+            h
+        },
+        remote_address: None,
+        body: Default::default(),
+    }
 }
 
 #[allow(dead_code)]
-pub fn make_content_response(content_type: &str, body: &str) -> Response {
-    ResponseBuilder::new()
-        .status(StatusCode::OK)
-        .header("Content-Type", content_type)
-        .body(body.to_owned())
-        .unwrap()
-        .into()
+pub fn make_content_response(content_type: &str, body: &str) -> HttpResponse {
+    HttpResponse {
+        status: StatusCode::OK,
+        headers: {
+            let mut h = HashMap::new();
+            h.insert("content-type".into(), content_type.into());
+            h
+        },
+        remote_address: None,
+        body: body.into(),
+    }
 }
 
 #[allow(dead_code)]

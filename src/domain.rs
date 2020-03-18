@@ -68,7 +68,7 @@ pub struct HttpResponse {
     /// Response status code.
     pub status: StatusCode,
 
-    /// Response headers.
+    /// Response headers. Header names must be lowercase.
     pub headers: HashMap<String, String>,
 
     /// Response body.
